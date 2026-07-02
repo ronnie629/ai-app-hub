@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -12,7 +13,7 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         String   @default("USER") // USER | DEVELOPER | ADMIN
+  role         String   @default("USER")
   points       Int      @default(0)
   bio          String?
   avatar       String?
@@ -27,59 +28,59 @@ model User {
 }
 
 model App {
-  id               String         @id @default(cuid())
-  title            String
-  description      String
-  category         String         @default("其他")
-  appType          String         @default("WEB") // WEB | API | PLUGIN | MINIPROGRAM | OTHER
-  coverImage       String?
-  screenshots      String         @default("[]") // JSON array of URLs
-  price            Int            @default(0) // price in points
-  usageInstructions String        @default("")
-  accessUrl        String         @default("")
-  tags             String         @default("[]") // JSON array of tags
-  developerId      String
-  status           String         @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
-  downloadCount    Int            @default(0)
-  rating           Float          @default(0)
-  reviewCount      Int            @default(0)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                String         @id @default(cuid())
+  title             String
+  description       String
+  category          String         @default("其他")
+  appType           String         @default("WEB")
+  coverImage        String?
+  screenshots       String         @default("[]")
+  price             Int            @default(0)
+  usageInstructions String         @default("")
+  accessUrl         String         @default("")
+  tags              String         @default("[]")
+  developerId       String
+  status            String         @default("PENDING")
+  downloadCount     Int            @default(0)
+  rating            Float          @default(0)
+  reviewCount       Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  developer        User           @relation(fields: [developerId], references: [id])
-  purchases        Purchase[]
-  reviews          Review[]
+  developer         User           @relation(fields: [developerId], references: [id])
+  purchases         Purchase[]
+  reviews           Review[]
 
   @@map("apps")
 }
 
 model Purchase {
-  id              String   @id @default(cuid())
-  userId          String
-  appId           String
-  pointsCost      Int
-  developerEarning Int    @default(0)
-  platformEarning Int     @default(0)
-  status          String   @default("COMPLETED") // COMPLETED | REFUNDED
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String
+  appId            String
+  pointsCost       Int
+  developerEarning Int      @default(0)
+  platformEarning  Int      @default(0)
+  status           String   @default("COMPLETED")
+  createdAt        DateTime @default(now())
 
-  user            User     @relation(fields: [userId], references: [id])
-  app             App      @relation(fields: [appId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
+  app              App      @relation(fields: [appId], references: [id])
 
   @@map("purchases")
 }
 
 model PointsTransaction {
-  id          String   @id @default(cuid())
-  userId      String
-  type        String   // RECHARGE | PURCHASE | EARNING | REFUND
-  amount      Int      // positive for credit, negative for debit
+  id           String   @id @default(cuid())
+  userId       String
+  type         String
+  amount       Int
   balanceAfter Int
-  description String   @default("")
-  relatedId   String?  // related entity id (appId, purchaseId, etc.)
-  createdAt   DateTime @default(now())
+  description  String   @default("")
+  relatedId    String?
+  createdAt    DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
 
   @@map("points_transactions")
 }
@@ -88,7 +89,7 @@ model Review {
   id        String   @id @default(cuid())
   userId    String
   appId     String
-  rating    Int      // 1-5
+  rating    Int
   comment   String   @default("")
   createdAt DateTime @default(now())
 
@@ -100,7 +101,7 @@ model Review {
 
 model PlatformConfig {
   id                String  @id @default("default")
-  platformFeeRate   Float   @default(0.1) // platform takes 10% by default
+  platformFeeRate   Float   @default(0.1)
   minRechargePoints Int     @default(100)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

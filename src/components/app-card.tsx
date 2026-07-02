@@ -12,7 +12,7 @@ interface AppCardProps {
     price: number;
     downloadCount: number;
     rating: number;
-    createdAt: Date;
+    createdAt: Date | string;
     developer: { name: string };
   };
   compact?: boolean;

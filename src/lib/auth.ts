@@ -13,7 +13,7 @@ export interface SessionUser {
 }
 
 export async function encrypt(payload: SessionUser) {
-  return await new SignJWT(payload)
+  return await new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")

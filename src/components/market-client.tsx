@@ -14,7 +14,7 @@ interface AppData {
   price: number;
   downloadCount: number;
   rating: number;
-  createdAt: string;
+  createdAt: Date | string;
   developer: { name: string };
 }
 
