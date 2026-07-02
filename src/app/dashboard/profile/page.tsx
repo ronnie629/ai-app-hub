@@ -22,6 +22,7 @@ export default async function ProfilePage() {
       workYears: true,
       isDeveloper: true,
       appDomains: true,
+      role: true,
       lastLoginAt: true,
       createdAt: true,
     },

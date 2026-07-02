@@ -5,6 +5,8 @@ import { useState, useRef, useCallback } from "react";
 export interface UploadedImage {
   url: string;
   path: string;
+  /** 是否从数据库里已有的 URL 回填而来（不触发新上传） */
+  isExisting?: boolean;
 }
 
 interface ImageUploaderProps {

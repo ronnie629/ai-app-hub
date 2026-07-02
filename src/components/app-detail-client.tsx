@@ -46,6 +46,7 @@ interface SimilarApp {
   reviewCount: number;
   downloadCount: number;
   tags: string[];
+  createdAt: string | Date;
   developer: { id: string; name: string };
 }
 
