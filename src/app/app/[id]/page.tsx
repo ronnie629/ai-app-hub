@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import { CATEGORIES, APP_TYPES, APP_STATUS, safeJsonParse, formatPoints, formatDate, timeAgo } from "@/lib/constants";
 import { AppDetailClient } from "@/components/app-detail-client";
 import Link from "next/link";
@@ -75,6 +76,22 @@ export default async function AppDetailPage({
     })),
   };
 
+  // 计算当前用户购买状态（服务端渲染，避免前端闪烁）
+  const session = await getSession();
+  let hasPurchased = false;
+  if (session) {
+    if (app.price === 0) {
+      hasPurchased = true;
+    } else if (app.developerId === session.id) {
+      hasPurchased = true;
+    } else {
+      const purchase = await prisma.purchase.findFirst({
+        where: { userId: session.id, appId: app.id },
+      });
+      hasPurchased = !!purchase;
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -86,7 +103,7 @@ export default async function AppDetailPage({
         <span className="text-gray-700 truncate">{app.title}</span>
       </nav>
 
-      <AppDetailClient app={appData} otherApps={otherApps.map((a) => ({
+      <AppDetailClient app={appData} hasPurchased={hasPurchased} otherApps={otherApps.map((a) => ({
         ...a,
         createdAt: a.createdAt.toISOString(),
       }))} />

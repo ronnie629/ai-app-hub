@@ -60,6 +60,7 @@ interface ReviewStats {
 interface AppDetailClientProps {
   app: AppData;
   otherApps: any[];
+  hasPurchased?: boolean;
 }
 
 // 评价标签候选池
@@ -68,9 +69,9 @@ const REVIEW_TAG_OPTIONS = [
   "价格合理", "客服好", "更新频繁", "物超所值",
 ];
 
-export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
+export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurchased = false }: AppDetailClientProps) {
   const [user, setUser] = useState<any>(null);
-  const [hasPurchased, setHasPurchased] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(initialHasPurchased);
   const [favorited, setFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
