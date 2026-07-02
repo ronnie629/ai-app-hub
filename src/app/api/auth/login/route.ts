@@ -21,6 +21,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "密码错误" }, { status: 401 });
     }
 
+    // Update last login time
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
     await setSession({
       id: user.id,
       email: user.email,

@@ -7,7 +7,17 @@ const WELCOME_POINTS = 100;
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const {
+      name,
+      email,
+      password,
+      phone,
+      role,
+      profession,
+      interests,
+      workYears,
+      appDomains,
+    } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "请填写完整信息" }, { status: 400 });
@@ -24,17 +34,28 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // First user becomes admin
+    // First user becomes admin, otherwise default to selected role
     const userCount = await prisma.user.count();
-    const role = userCount === 0 ? "ADMIN" : "USER";
+    let finalRole = "USER";
+    if (userCount === 0) {
+      finalRole = "ADMIN";
+    } else if (role === "DEVELOPER") {
+      finalRole = "DEVELOPER";
+    }
 
     const user = await prisma.user.create({
       data: {
         name,
         email,
         passwordHash,
-        role,
+        phone: phone || "",
+        role: finalRole,
         points: WELCOME_POINTS,
+        isDeveloper: finalRole === "DEVELOPER",
+        profession: profession || null,
+        interests: interests || null,
+        workYears: workYears ? Number(workYears) : null,
+        appDomains: appDomains || null,
       },
     });
 
@@ -57,7 +78,7 @@ export async function POST(req: Request) {
       points: user.points,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, role: user.role });
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json({ error: "注册失败" }, { status: 500 });

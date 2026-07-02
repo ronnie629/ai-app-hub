@@ -84,9 +84,10 @@ async function main() {
     try {
       await prisma.$executeRawUnsafe(sql);
     } catch (e) {
+      const err = e as Error;
       // Skip duplicate constraint errors
-      if (!e.message?.includes('already exists') && !e.message?.includes('42710')) {
-        console.log('Note:', e.message?.split('\n')[0] || e.message);
+      if (!err.message?.includes('already exists') && !err.message?.includes('42710')) {
+        console.log('Note:', err.message?.split('\n')[0] || err.message);
       }
     }
   }

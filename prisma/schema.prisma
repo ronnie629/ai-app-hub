@@ -9,16 +9,23 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String
   passwordHash String
-  role         String   @default("USER")
-  points       Int      @default(0)
+  phone        String    @default("")
+  role         String    @default("USER")
+  points       Int       @default(0)
   bio          String?
   avatar       String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isDeveloper  Boolean   @default(false)
+  profession   String?
+  interests    String?
+  workYears    Int?
+  appDomains   String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   apps         App[]
   purchases    Purchase[]
