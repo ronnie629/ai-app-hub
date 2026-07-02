@@ -115,3 +115,28 @@ model PlatformConfig {
 
   @@map("platform_config")
 }
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  appId     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, appId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  content   String   @default("")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
+}

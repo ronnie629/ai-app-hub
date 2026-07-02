@@ -8,9 +8,12 @@ interface DashboardNavProps {
 export function DashboardNav({ active, role }: DashboardNavProps) {
   const links = [
     { href: "/dashboard", key: "overview", label: "概览" },
+    { href: "/dashboard/profile", key: "profile", label: "个人资料" },
+    { href: "/dashboard/favorites", key: "favorites", label: "我的收藏" },
     { href: "/dashboard/apps", key: "apps", label: "我的应用" },
     { href: "/dashboard/points", key: "points", label: "积分充值" },
     { href: "/dashboard/earnings", key: "earnings", label: "收入记录" },
+    { href: "/dashboard/notifications", key: "notifications", label: "消息通知" },
   ];
 
   return (

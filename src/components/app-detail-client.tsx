@@ -34,8 +34,10 @@ interface AppDetailClientProps {
 export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
   const [user, setUser] = useState<any>(null);
   const [hasPurchased, setHasPurchased] = useState(false);
+  const [favorited, setFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"description" | "instructions" | "reviews">("description");
 
@@ -49,10 +51,43 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
           const res = await fetch(`/api/apps/${app.id}/purchase-check`);
           const purchaseData = await res.json();
           setHasPurchased(purchaseData.purchased);
+          // Check favorite
+          const favRes = await fetch(`/api/favorites?appId=${app.id}`).catch(() => null);
+          if (favRes) {
+            const favData = await favRes.json();
+            setFavorited(favData.favorited === true);
+          }
         }
       })
       .finally(() => setLoading(false));
   }, [app.id]);
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      window.location.href = `/login?redirect=/app/${app.id}`;
+      return;
+    }
+    setFavLoading(true);
+    try {
+      if (favorited) {
+        await fetch("/api/favorites", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appId: app.id }),
+        });
+        setFavorited(false);
+      } else {
+        await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appId: app.id }),
+        });
+        setFavorited(true);
+      }
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const handlePurchase = async () => {
     if (!user) {
@@ -129,7 +164,7 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
           )}
 
           {/* Price and buy */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="rounded-xl bg-amber-50 px-4 py-2">
               <span className="text-lg font-bold text-amber-700">
                 {app.price === 0 ? "免费" : `⚡ ${formatPoints(app.price)} 积分`}
@@ -174,6 +209,18 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
                 {purchasing ? "购买中..." : `购买 (${formatPoints(app.price)} 积分)`}
               </button>
             )}
+            <button
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              title={favorited ? "取消收藏" : "收藏"}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                favorited
+                  ? "border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {favorited ? "♥ 已收藏" : "♡ 收藏"}
+            </button>
             {user && user.points !== undefined && app.price > 0 && !hasPurchased && (
               <span className="text-sm text-gray-400">
                 余额: ⚡ {formatPoints(user.points)}
