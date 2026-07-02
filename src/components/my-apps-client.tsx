@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard-nav";
@@ -30,8 +30,6 @@ export function MyAppsClient({ initialApps, role }: MyAppsClientProps) {
 
   // 删除弹窗状态
   const [deleteTarget, setDeleteTarget] = useState<AppItem | null>(null);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const deleteInputRef = useRef<HTMLInputElement>(null);
 
   // 下架弹窗状态
   const [suspendTarget, setSuspendTarget] = useState<AppItem | null>(null);
@@ -45,13 +43,6 @@ export function MyAppsClient({ initialApps, role }: MyAppsClientProps) {
       return () => clearTimeout(t);
     }
   }, [toast]);
-
-  useEffect(() => {
-    if (deleteTarget) {
-      setDeleteConfirmText("");
-      setTimeout(() => deleteInputRef.current?.focus(), 50);
-    }
-  }, [deleteTarget]);
 
   const refresh = useCallback(() => {
     router.refresh();
@@ -113,10 +104,6 @@ export function MyAppsClient({ initialApps, role }: MyAppsClientProps) {
 
   // 一键删除
   const handleDelete = async (app: AppItem) => {
-    if (deleteConfirmText !== app.title) {
-      setToast({ type: "err", msg: "应用名称输入不一致，请重新确认" });
-      return;
-    }
     setBusyId(app.id);
     try {
       const res = await fetch(`/api/apps/${app.id}`, { method: "DELETE" });
@@ -360,49 +347,20 @@ export function MyAppsClient({ initialApps, role }: MyAppsClientProps) {
             </p>
           </div>
 
-          <ul className="text-sm text-gray-700 space-y-1 mb-4 list-disc pl-5">
+          <ul className="text-sm text-gray-700 space-y-1 mb-5 list-disc pl-5">
             <li>应用的封面、截图、描述、标签全部丢失</li>
             <li>所有用户评价会被删除</li>
             <li>所有购买记录会被删除</li>
             <li>无法恢复，请谨慎操作</li>
           </ul>
 
-          <div className="mb-5">
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              请输入应用名称{" "}
-              <span className="text-red-500">「{deleteTarget.title}」</span>{" "}
-              以确认删除：
-            </label>
-            <input
-              ref={deleteInputRef}
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder={deleteTarget.title}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setDeleteTarget(null)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(deleteTarget)}
-              disabled={
-                busyId === deleteTarget.id ||
-                deleteConfirmText !== deleteTarget.title
-              }
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {busyId === deleteTarget.id ? "删除中..." : "确认删除"}
-            </button>
-          </div>
+          <ModalActions
+            onCancel={() => setDeleteTarget(null)}
+            onConfirm={() => handleDelete(deleteTarget)}
+            confirmText="确认删除"
+            confirmStyle="red"
+            busy={busyId === deleteTarget.id}
+          />
         </Modal>
       )}
     </div>

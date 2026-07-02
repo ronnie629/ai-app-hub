@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ImageUploader, UploadedImage } from "@/components/image-uploader";
@@ -78,6 +78,30 @@ function formFromInitialData(d: NonNullable<PublishFormProps["initialData"]>): F
   };
 }
 
+// 用 useCallback 引用稳定的 Field 组件，避免父组件重渲染时 remount 子 input 导致失焦
+function Field({
+  label,
+  required,
+  children,
+  hint,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-gray-800">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
 export function PublishForm({
   categories,
   appTypes,
@@ -118,7 +142,8 @@ export function PublishForm({
 
   // 自动保存草稿
   useEffect(() => {
-    if (!draftRestored && form === emptyForm()) return;
+    // 草稿恢复成功后才允许写本地，避免覆盖已有草稿
+    if (!draftRestored) return;
     const id = setTimeout(() => {
       try {
         localStorage.setItem(
@@ -260,25 +285,12 @@ export function PublishForm({
   const categoryInfo = CATEGORIES.find((c) => c.key === form.category);
   const appTypeInfo = APP_TYPES.find((t) => t.key === form.appType);
 
-  const Field = ({
-    label,
-    required,
-    children,
-    hint,
-  }: {
-    label: string;
-    required?: boolean;
-    children: React.ReactNode;
-    hint?: string;
-  }) => (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-gray-800">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {children}
-      {hint && <p className="text-xs text-gray-400">{hint}</p>}
-    </div>
+  // 用 useCallback 包裹单个字段的 setState，避免每次 render 产生新函数引用
+  const setField = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    []
   );
 
   return (
@@ -324,7 +336,7 @@ export function PublishForm({
               type="text"
               maxLength={50}
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => setField("title", e.target.value)}
               placeholder="给你的 AI 应用起个名字"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
@@ -339,7 +351,7 @@ export function PublishForm({
               rows={5}
               maxLength={1000}
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setField("description", e.target.value)}
               placeholder="详细描述你的应用功能、特点、适用场景。建议结构：解决什么问题 + 怎么解决 + 用户能得到什么"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
@@ -390,7 +402,7 @@ export function PublishForm({
             <Field label="分类" required>
               <select
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => setField("category", e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {categories.map((cat) => (
@@ -403,7 +415,7 @@ export function PublishForm({
             <Field label="应用类型" required>
               <select
                 value={form.appType}
-                onChange={(e) => setForm({ ...form, appType: e.target.value })}
+                onChange={(e) => setField("appType", e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 {appTypes.map((type) => (
@@ -426,7 +438,7 @@ export function PublishForm({
             <ImageUploader
               label=""
               value={form.coverImage ? [form.coverImage] : []}
-              onChange={(imgs) => setForm({ ...form, coverImage: imgs[0] || null })}
+              onChange={(imgs) => setField("coverImage", imgs[0] || null)}
               bucket={BUCKETS.COVERS}
               maxCount={1}
               maxSizeMB={5}
@@ -438,7 +450,7 @@ export function PublishForm({
             <ImageUploader
               label=""
               value={form.screenshots}
-              onChange={(imgs) => setForm({ ...form, screenshots: imgs })}
+              onChange={(imgs) => setField("screenshots", imgs)}
               bucket={BUCKETS.SCREENSHOTS}
               maxCount={6}
               maxSizeMB={8}
@@ -455,7 +467,7 @@ export function PublishForm({
                 min={0}
                 max={100000}
                 value={form.price}
-                onChange={(e) => setForm({ ...form, price: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setField("price", parseInt(e.target.value) || 0)}
                 className="w-32 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
               <span className="text-sm text-gray-500">
@@ -501,7 +513,7 @@ export function PublishForm({
             <input
               type="url"
               value={form.accessUrl}
-              onChange={(e) => setForm({ ...form, accessUrl: e.target.value })}
+              onChange={(e) => setField("accessUrl", e.target.value)}
               placeholder="https://your-app.com"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
@@ -512,7 +524,7 @@ export function PublishForm({
             <textarea
               rows={5}
               value={form.usageInstructions}
-              onChange={(e) => setForm({ ...form, usageInstructions: e.target.value })}
+              onChange={(e) => setField("usageInstructions", e.target.value)}
               placeholder="详细的使用步骤、注意事项、API 调用方法、关键提示等"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
