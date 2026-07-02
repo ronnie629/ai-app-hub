@@ -61,6 +61,7 @@ async function main() {
           category: "文本处理",
           appType: "WEB",
           price: 50,
+          pricePerUse: 5,
           accessUrl: "https://example.com/writer",
           usageInstructions: "1. 点击访问地址进入应用\n2. 输入写作需求或关键词\n3. 选择文体和风格\n4. 生成并编辑结果",
           tags: JSON.stringify(["写作", "GPT", "翻译", "摘要"]),
@@ -76,6 +77,7 @@ async function main() {
           category: "图片生成",
           appType: "WEB",
           price: 100,
+          pricePerUse: 10,
           accessUrl: "https://example.com/image-gen",
           usageInstructions: "1. 输入图片描述文字\n2. 选择风格和比例\n3. 点击生成\n4. 下载高清图片",
           tags: JSON.stringify(["AI绘画", "图片生成", "设计"]),
@@ -91,6 +93,7 @@ async function main() {
           category: "数据分析",
           appType: "WEB",
           price: 80,
+          pricePerUse: 8,
           accessUrl: "https://example.com/analyst",
           usageInstructions: "1. 上传数据文件\n2. AI自动分析结构\n3. 用自然语言提问\n4. 导出报告和图表",
           tags: JSON.stringify(["数据分析", "Excel", "可视化"]),
@@ -106,6 +109,7 @@ async function main() {
           category: "语音处理",
           appType: "API",
           price: 200,
+          pricePerUse: 20,
           accessUrl: "https://api.example.com/stt",
           usageInstructions: "1. 注册获取API Key\n2. 调用REST接口\n3. 上传音频文件\n4. 获取识别结果",
           tags: JSON.stringify(["语音识别", "API", "转文字"]),
@@ -121,6 +125,7 @@ async function main() {
           category: "开发工具",
           appType: "PLUGIN",
           price: 150,
+          pricePerUse: 15,
           accessUrl: "https://example.com/copilot",
           usageInstructions: "1. 在VSCode安装插件\n2. 登录账号\n3. 开始写代码，AI自动补全\n4. 使用快捷键触发建议",
           tags: JSON.stringify(["代码", "VSCode", "插件", "Copilot"]),
@@ -136,6 +141,7 @@ async function main() {
           category: "文本处理",
           appType: "WEB",
           price: 30,
+          pricePerUse: 3,
           accessUrl: "https://example.com/translate",
           usageInstructions: "1. 输入或粘贴文本\n2. 选择目标语言\n3. 点击翻译\n4. 复制或下载结果",
           tags: JSON.stringify(["翻译", "多语言"]),
@@ -154,7 +160,7 @@ async function main() {
   // Create demo regular user
   const userExists = await prisma.user.findUnique({ where: { email: "user@aihub.com" } });
   if (!userExists) {
-    const passwordHash = await bcrypt.hash("123456", 10);
+    const passwordHash = await bcrypt.hash("654321", 10);
     await prisma.user.create({
       data: {
         name: "普通用户",
@@ -164,14 +170,14 @@ async function main() {
         points: 500,
       },
     });
-    console.log("✓ Demo user created (user@aihub.com / 123456)");
+    console.log("✓ Demo user created (user@aihub.com / 654321)");
   }
 
   console.log("\n🎉 Seed completed!");
   console.log("\nDemo accounts:");
   console.log("  Admin:     admin@aihub.com / 123456");
   console.log("  Developer: dev@aihub.com / 123456");
-  console.log("  User:      user@aihub.com / 123456");
+  console.log("  User:      user@aihub.com / 654321");
 }
 
 main()

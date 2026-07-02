@@ -13,27 +13,43 @@ export async function POST(
     }
 
     const { id: appId } = await params;
+    const body = await req.json().catch(() => ({}));
+    const type = body.type === "per_use" ? "PER_USE" : "BUYOUT";
 
     const app = await prisma.app.findUnique({ where: { id: appId } });
     if (!app || app.status !== "APPROVED") {
       return NextResponse.json({ error: "应用不存在或已下架" }, { status: 404 });
     }
 
-    // Check if already purchased
-    const existing = await prisma.purchase.findFirst({
-      where: { userId: session.id, appId },
-    });
-    if (existing) {
-      return NextResponse.json({ error: "已购买过该应用" }, { status: 400 });
+    // 判断开发者自己
+    const isDeveloper = app.developerId === session.id;
+
+    // 买断：检查是否已有任何完成记录（买断永久有效）
+    if (type === "BUYOUT") {
+      const existingBuyout = await prisma.purchase.findFirst({
+        where: { userId: session.id, appId, purchaseType: "BUYOUT" },
+      });
+      if (existingBuyout) {
+        return NextResponse.json({ error: "已购买过该应用" }, { status: 400 });
+      }
     }
 
-    // Free app
-    if (app.price === 0) {
+    const price = type === "PER_USE" ? app.pricePerUse : app.price;
+
+    // 验证价格
+    if (price < 0) {
+      return NextResponse.json({ error: "该应用未开放此购买方式" }, { status: 400 });
+    }
+
+    // 免费应用（买断或按次价格为0），直接创建记录
+    if (price === 0 && !isDeveloper) {
       const purchase = await prisma.purchase.create({
         data: {
           userId: session.id,
           appId,
           pointsCost: 0,
+          purchaseType: type,
+          remainingUses: type === "PER_USE" ? 1 : 0,
           developerEarning: 0,
           platformEarning: 0,
         },
@@ -42,77 +58,80 @@ export async function POST(
         where: { id: appId },
         data: { downloadCount: { increment: 1 } },
       });
-      return NextResponse.json({ ok: true, purchaseId: purchase.id, remainingPoints: session.points });
+      return NextResponse.json({
+        ok: true,
+        purchaseId: purchase.id,
+        purchaseType: purchase.purchaseType,
+        remainingPoints: session.points,
+      });
     }
 
-    // Check points
+    // 积分检查
     const user = await prisma.user.findUnique({ where: { id: session.id } });
-    if (!user || user.points < app.price) {
+    if (!user || user.points < price) {
       return NextResponse.json({ error: "积分不足，请先充值" }, { status: 400 });
     }
 
-    // Get platform config
+    // 平台抽成
     let platformFeeRate = 0.1;
     const config = await prisma.platformConfig.findUnique({ where: { id: "default" } });
-    if (config) {
-      platformFeeRate = config.platformFeeRate;
-    }
+    if (config) platformFeeRate = config.platformFeeRate;
 
-    const platformEarning = Math.floor(app.price * platformFeeRate);
-    const developerEarning = app.price - platformEarning;
+    const platformEarning = Math.floor(price * platformFeeRate);
+    const developerEarning = price - platformEarning;
 
-    // Transaction: deduct points, create purchase, update app count, record transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Deduct points from user
+      // 扣除用户积分
       const updatedUser = await tx.user.update({
         where: { id: session.id },
-        data: { points: { decrement: app.price } },
+        data: { points: { decrement: price } },
       });
 
-      // Add earnings to developer
-      if (app.developerId !== session.id) {
+      // 增加开发者收入
+      if (!isDeveloper && developerEarning > 0) {
         await tx.user.update({
           where: { id: app.developerId },
           data: { points: { increment: developerEarning } },
         });
 
-        // Record developer earning transaction
         await tx.pointsTransaction.create({
           data: {
             userId: app.developerId,
             type: "EARNING",
             amount: developerEarning,
-            balanceAfter: 0, // We don't track exact balance here for simplicity
-            description: `应用「${app.title}」销售收入`,
+            balanceAfter: 0,
+            description: `应用「${app.title}」${type === "PER_USE" ? "按次使用" : "买断"}收入`,
             relatedId: appId,
           },
         });
       }
 
-      // Create purchase record
+      // 创建购买记录
       const purchase = await tx.purchase.create({
         data: {
           userId: session.id,
           appId,
-          pointsCost: app.price,
+          pointsCost: price,
+          purchaseType: type,
+          remainingUses: type === "PER_USE" ? 1 : 0,
           developerEarning,
           platformEarning,
         },
       });
 
-      // Record user spending transaction
+      // 记录用户支出
       await tx.pointsTransaction.create({
         data: {
           userId: session.id,
           type: "PURCHASE",
-          amount: -app.price,
+          amount: -price,
           balanceAfter: updatedUser.points,
-          description: `购买应用「${app.title}」`,
+          description: `${type === "PER_USE" ? "按次购买" : "买断"}应用「${app.title}」`,
           relatedId: appId,
         },
       });
 
-      // Increment download count
+      // 增加使用量
       await tx.app.update({
         where: { id: appId },
         data: { downloadCount: { increment: 1 } },
@@ -124,6 +143,8 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       purchaseId: result.purchase.id,
+      purchaseType: result.purchase.purchaseType,
+      remainingUses: result.purchase.remainingUses,
       remainingPoints: result.remainingPoints,
     });
   } catch (error) {

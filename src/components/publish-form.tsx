@@ -17,6 +17,7 @@ interface PublishFormProps {
     category: string;
     appType: string;
     price: number;
+    pricePerUse: number;
     accessUrl: string;
     usageInstructions: string;
     coverImage: string | null;
@@ -35,6 +36,7 @@ interface FormState {
   coverImage: UploadedImage | null;
   screenshots: UploadedImage[];
   price: number;
+  pricePerUse: number;
   accessUrl: string;
   usageInstructions: string;
 }
@@ -52,6 +54,7 @@ function emptyForm(): FormState {
     coverImage: null,
     screenshots: [],
     price: 0,
+    pricePerUse: -1,
     accessUrl: "",
     usageInstructions: "",
   };
@@ -73,6 +76,7 @@ function formFromInitialData(d: NonNullable<PublishFormProps["initialData"]>): F
       isExisting: true,
     })),
     price: d.price,
+    pricePerUse: d.pricePerUse ?? -1,
     accessUrl: d.accessUrl,
     usageInstructions: d.usageInstructions,
   };
@@ -178,10 +182,12 @@ export function PublishForm({
 
   // 校验
   const allValid = useMemo(() => {
+    const perUseValid = form.pricePerUse < 0 || form.pricePerUse >= 0; // 数字即可，开关关闭时 -1 也合法
     return (
       form.title.trim().length > 0 &&
       form.description.trim().length >= 10 &&
-      form.price >= 0
+      form.price >= 0 &&
+      perUseValid
     );
   }, [form]);
 
@@ -239,6 +245,7 @@ export function PublishForm({
         coverImage: form.coverImage?.url || "",
         screenshots: form.screenshots,
         price: form.price,
+        pricePerUse: form.pricePerUse,
         accessUrl: form.accessUrl,
         usageInstructions: form.usageInstructions,
         tags: parsedTags,
@@ -459,31 +466,95 @@ export function PublishForm({
           </Field>
 
           {/* 定价 */}
-          <Field label="定价（积分）" required hint="填 0 表示免费。平台默认抽取 10% 作为服务费。">
-            <div className="flex items-center gap-3">
-              <span className="text-amber-500 text-lg">⚡</span>
-              <input
-                type="number"
-                min={0}
-                max={100000}
-                value={form.price}
-                onChange={(e) => setField("price", parseInt(e.target.value) || 0)}
-                className="w-32 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              />
-              <span className="text-sm text-gray-500">
-                {form.price === 0 ? "免费应用" : `${formatPoints(form.price)} 积分`}
-              </span>
-            </div>
-            {form.price > 0 && (
-              <p className="text-xs text-gray-400">
-                每次售出你将获得{" "}
-                <span className="font-semibold text-gray-600">
-                  {formatPoints(Math.floor(form.price * 0.9))}
-                </span>{" "}
-                积分（平台抽成 {formatPoints(Math.floor(form.price * 0.1))} 积分）
-              </p>
-            )}
-          </Field>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Field label="买断价（积分）" required hint="一次性买断价格，填 0 表示免费。">
+              <div className="flex items-center gap-3">
+                <span className="text-amber-500 text-lg">⚡</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100000}
+                  value={form.price}
+                  onChange={(e) => setField("price", parseInt(e.target.value) || 0)}
+                  className="w-32 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+                <span className="text-sm text-gray-500">
+                  {form.price === 0 ? "免费" : `${formatPoints(form.price)} 积分`}
+                </span>
+              </div>
+              {form.price > 0 && (
+                <p className="text-xs text-gray-400">
+                  买断售出你将获得{" "}
+                  <span className="font-semibold text-gray-600">
+                    {formatPoints(Math.floor(form.price * 0.9))}
+                  </span>{" "}
+                  积分（平台抽成 {formatPoints(Math.floor(form.price * 0.1))} 积分）
+                </p>
+              )}
+            </Field>
+
+            <Field
+              label="按次计费"
+              hint={
+                form.pricePerUse >= 0
+                  ? "开启后用户可选择按单次付费使用"
+                  : "关闭后详情页只显示买断按钮"
+              }
+            >
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setField("pricePerUse", form.pricePerUse >= 0 ? -1 : 0)
+                  }
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                    form.pricePerUse >= 0 ? "bg-indigo-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      form.pricePerUse >= 0 ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+                <span className="ml-2 text-sm text-gray-600">
+                  {form.pricePerUse >= 0 ? "已开启" : "已关闭"}
+                </span>
+
+                {form.pricePerUse >= 0 && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-indigo-500 text-lg">⚡</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100000}
+                      value={form.pricePerUse}
+                      onChange={(e) =>
+                        setField("pricePerUse", parseInt(e.target.value) || 0)
+                      }
+                      placeholder="每次积分"
+                      className="w-32 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <span className="text-sm text-gray-500">
+                      {form.pricePerUse === 0
+                        ? "按次免费"
+                        : `${formatPoints(form.pricePerUse)} 积分/次`}
+                    </span>
+                  </div>
+                )}
+
+                {form.pricePerUse > 0 && (
+                  <p className="text-xs text-gray-400">
+                    每次使用你将获得{" "}
+                    <span className="font-semibold text-gray-600">
+                      {formatPoints(Math.floor(form.pricePerUse * 0.9))}
+                    </span>{" "}
+                    积分（平台抽成 {formatPoints(Math.floor(form.pricePerUse * 0.1))} 积分）
+                  </p>
+                )}
+              </div>
+            </Field>
+          </div>
 
           {/* 标签 */}
           <Field label="标签">

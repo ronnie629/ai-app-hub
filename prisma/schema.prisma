@@ -43,6 +43,7 @@ model App {
   coverImage        String?
   screenshots       String         @default("[]")
   price             Int            @default(0)
+  pricePerUse       Int            @default(-1) // -1=未开启按次, 0=按次免费, >0=按次价格
   usageInstructions String         @default("")
   accessUrl         String         @default("")
   tags              String         @default("[]")
@@ -66,6 +67,8 @@ model Purchase {
   userId           String
   appId            String
   pointsCost       Int
+  purchaseType     String   @default("BUYOUT") // BUYOUT | PER_USE
+  remainingUses    Int      @default(0) // 买断为0，按次购买为剩余次数
   developerEarning Int      @default(0)
   platformEarning  Int      @default(0)
   status           String   @default("COMPLETED")

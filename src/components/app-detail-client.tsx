@@ -14,6 +14,7 @@ interface AppData {
   coverImage: string | null;
   screenshots: string[];
   price: number;
+  pricePerUse: number;
   usageInstructions: string;
   accessUrl: string;
   tags: string[];
@@ -57,10 +58,18 @@ interface ReviewStats {
   tagCloud: Record<string, number>;
 }
 
+interface PurchaseStatus {
+  purchased: boolean;
+  purchaseType: "BUYOUT" | "PER_USE" | null;
+  remainingUses: number;
+  canUse: boolean;
+}
+
 interface AppDetailClientProps {
   app: AppData;
   otherApps: any[];
   hasPurchased?: boolean;
+  purchaseStatus?: PurchaseStatus;
 }
 
 // 评价标签候选池
@@ -69,12 +78,24 @@ const REVIEW_TAG_OPTIONS = [
   "价格合理", "客服好", "更新频繁", "物超所值",
 ];
 
-export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurchased = false }: AppDetailClientProps) {
+export function AppDetailClient({
+  app,
+  otherApps,
+  hasPurchased: initialHasPurchased = false,
+  purchaseStatus: initialPurchaseStatus,
+}: AppDetailClientProps) {
   const [user, setUser] = useState<any>(null);
-  const [hasPurchased, setHasPurchased] = useState(initialHasPurchased);
+  const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus>(
+    initialPurchaseStatus || {
+      purchased: initialHasPurchased,
+      purchaseType: null,
+      remainingUses: 0,
+      canUse: initialHasPurchased,
+    }
+  );
   const [favorited, setFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(false);
+  const [purchasing, setPurchasing] = useState<"buyout" | "per_use" | null>(null);
   const [favLoading, setFavLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"description" | "instructions" | "reviews" | "changelog">(
@@ -108,7 +129,12 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
           setUser(data.user);
           const res = await fetch(`/api/apps/${app.id}/purchase-check`);
           const purchaseData = await res.json();
-          setHasPurchased(purchaseData.purchased);
+          setPurchaseStatus({
+            purchased: purchaseData.purchased,
+            purchaseType: purchaseData.purchaseType,
+            remainingUses: purchaseData.remainingUses || 0,
+            canUse: purchaseData.canUse,
+          });
           const favRes = await fetch(`/api/favorites?appId=${app.id}`).catch(() => null);
           if (favRes) {
             const favData = await favRes.json();
@@ -158,21 +184,34 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
     }
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (type: "buyout" | "per_use") => {
     if (!user) {
       window.location.href = "/login";
       return;
     }
-    setPurchasing(true);
+    setPurchasing(type);
     setMessage("");
     try {
-      const res = await fetch(`/api/apps/${app.id}/purchase`, { method: "POST" });
+      const res = await fetch(`/api/apps/${app.id}/purchase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
       const data = await res.json();
       if (res.ok) {
-        setHasPurchased(true);
-        setMessage("购买成功！现在可以使用该应用了。");
+        const newStatus: PurchaseStatus = {
+          purchased: true,
+          purchaseType: data.purchaseType || "BUYOUT",
+          remainingUses: data.remainingUses ?? -1,
+          canUse: true,
+        };
+        setPurchaseStatus(newStatus);
+        setMessage(
+          type === "per_use"
+            ? "购买成功！已获得 1 次使用次数。"
+            : "购买成功！现在可以永久使用该应用了。"
+        );
         setUser({ ...user, points: data.remainingPoints });
-        // 提示评价
         setTimeout(() => {
           if (window.confirm("购买成功！是否立即评价？")) {
             setShowReviewModal(true);
@@ -184,7 +223,7 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
     } catch {
       setMessage("网络错误，请重试");
     } finally {
-      setPurchasing(false);
+      setPurchasing(null);
     }
   };
 
@@ -193,18 +232,30 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
       window.location.href = `/login?redirect=/app/${app.id}`;
       return;
     }
+    if (!app.accessUrl) {
+      setMessage("该应用未配置访问地址");
+      return;
+    }
     setAccessing(true);
     setMessage("");
+    // 先同步打开空白窗口，避免异步 fetch 后被浏览器拦截弹窗
+    const newWindow = window.open("about:blank", "_blank");
+    if (!newWindow) {
+      setMessage("弹窗被拦截，请允许本站弹窗后再试");
+      setAccessing(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/apps/${app.id}/access`, { method: "POST" });
       const data = await res.json();
       if (res.ok && data.useUrl) {
-        // 在新标签页打开代理页面
-        window.open(data.useUrl, "_blank");
+        newWindow.location.href = data.useUrl;
       } else {
+        newWindow.close();
         setMessage(data.error || "获取访问权限失败");
       }
     } catch {
+      newWindow.close();
       setMessage("网络错误，请重试");
     } finally {
       setAccessing(false);
@@ -444,7 +495,7 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
                 ) : (
                   <p className="text-gray-400">暂无使用说明</p>
                 )}
-                {hasPurchased && app.accessUrl && (
+                {purchaseStatus.purchased && app.accessUrl && (
                   <div className="mt-6 rounded-xl bg-indigo-50 p-4">
                     <p className="text-sm font-medium text-indigo-700 mb-2">访问方式</p>
                     <p className="text-sm text-indigo-600">点击右侧「立即使用」按钮即可安全访问应用，每次使用需重新点击。</p>
@@ -526,7 +577,7 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
                   <div className="rounded-xl border-2 border-dashed border-gray-200 p-8 text-center">
                     <div className="text-3xl">💬</div>
                     <p className="mt-2 text-sm text-gray-500">还没有用户评价</p>
-                    {hasPurchased && (
+                    {purchaseStatus.purchased && (
                       <button
                         onClick={() => setShowReviewModal(true)}
                         className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -691,37 +742,58 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             {/* 价格 */}
             <div className="text-center pb-4 border-b border-gray-100">
-              <div className="text-3xl font-bold text-amber-700">
-                {app.price === 0 ? (
-                  <span className="text-green-600">免费</span>
-                ) : (
-                  <>
-                    <span className="text-amber-500">⚡</span> {formatPoints(app.price)}
-                  </>
-                )}
-              </div>
-              {app.price > 0 && (
-                <div className="mt-1 text-xs text-gray-400">积分</div>
+              {app.price === 0 && app.pricePerUse < 0 ? (
+                <div className="text-3xl font-bold text-green-600">免费</div>
+              ) : (
+                <div className="space-y-2">
+                  {app.price > 0 && (
+                    <div>
+                      <div className="text-3xl font-bold text-amber-700">
+                        <span className="text-amber-500">⚡</span> {formatPoints(app.price)}
+                      </div>
+                      <div className="text-xs text-gray-400">买断价</div>
+                    </div>
+                  )}
+                  {app.pricePerUse >= 0 && (
+                    <div>
+                      <div className="text-xl font-bold text-indigo-700">
+                        <span className="text-indigo-500">⚡</span> {formatPoints(app.pricePerUse)}
+                      </div>
+                      <div className="text-xs text-gray-400">按次价</div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             {/* 购买/使用按钮 */}
             <div className="mt-4 space-y-2">
-              {hasPurchased ? (
+              {purchaseStatus.purchased && purchaseStatus.canUse ? (
                 app.accessUrl ? (
-                  <button
-                    onClick={handleUseApp}
-                    disabled={accessing}
-                    className="block w-full rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {accessing ? "正在生成访问链接..." : "立即使用 →"}
-                  </button>
+                  <>
+                    {purchaseStatus.purchaseType === "BUYOUT" ? (
+                      <div className="rounded-xl bg-green-50 px-4 py-2 text-center text-sm font-medium text-green-700">
+                        ✓ 已购买
+                      </div>
+                    ) : purchaseStatus.purchaseType === "PER_USE" ? (
+                      <div className="rounded-xl bg-indigo-50 px-4 py-2 text-center text-sm font-medium text-indigo-700">
+                        剩余 {purchaseStatus.remainingUses} 次
+                      </div>
+                    ) : null}
+                    <button
+                      onClick={handleUseApp}
+                      disabled={accessing}
+                      className="block w-full rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {accessing ? "正在生成访问链接..." : "立即使用 →"}
+                    </button>
+                  </>
                 ) : (
                   <div className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-medium text-green-700">
                     ✓ 已购买
                   </div>
                 )
-              ) : app.price === 0 ? (
+              ) : app.price === 0 && app.pricePerUse < 0 ? (
                 app.accessUrl ? (
                   <button
                     onClick={handleUseApp}
@@ -736,13 +808,28 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
                   </button>
                 )
               ) : (
-                <button
-                  onClick={handlePurchase}
-                  disabled={purchasing || loading}
-                  className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {purchasing ? "购买中..." : `立即购买 (${formatPoints(app.price)} 积分)`}
-                </button>
+                <>
+                  {app.pricePerUse >= 0 && (
+                    <button
+                      onClick={() => handlePurchase("per_use")}
+                      disabled={purchasing === "per_use" || loading}
+                      className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {purchasing === "per_use"
+                        ? "购买中..."
+                        : `按次使用 (${formatPoints(app.pricePerUse)} 积分)`}
+                    </button>
+                  )}
+                  {app.price > 0 && (
+                    <button
+                      onClick={() => handlePurchase("buyout")}
+                      disabled={purchasing === "buyout" || loading}
+                      className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+                    >
+                      {purchasing === "buyout" ? "购买中..." : `买断 (${formatPoints(app.price)} 积分)`}
+                    </button>
+                  )}
+                </>
               )}
 
               <button
@@ -757,7 +844,7 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
                 {favorited ? "♥ 已收藏" : "♡ 收藏"}
               </button>
 
-              {hasPurchased && (
+              {purchaseStatus.purchased && (
                 <button
                   onClick={() => setShowReviewModal(true)}
                   className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100"
@@ -779,7 +866,7 @@ export function AppDetailClient({ app, otherApps, hasPurchased: initialHasPurcha
               </div>
             )}
 
-            {user && user.points !== undefined && app.price > 0 && !hasPurchased && (
+            {user && user.points !== undefined && !purchaseStatus.purchased && (
               <div className="mt-3 text-center text-xs text-gray-500">
                 余额：⚡ {formatPoints(user.points)} 积分
               </div>

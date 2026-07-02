@@ -16,10 +16,9 @@ export async function POST(
 
     const { id: appId } = await params;
 
-    // 查询应用
     const app = await prisma.app.findUnique({
       where: { id: appId },
-      select: { id: true, accessUrl: true, status: true, price: true },
+      select: { id: true, accessUrl: true, status: true, price: true, pricePerUse: true, developerId: true, title: true },
     });
 
     if (!app) {
@@ -34,47 +33,75 @@ export async function POST(
       return NextResponse.json({ error: "该应用未配置访问地址" }, { status: 400 });
     }
 
-    // 验证购买记录（免费应用也需要有购买记录）
-    const purchase = await prisma.purchase.findFirst({
-      where: {
-        userId: session.id,
-        appId: appId,
-        status: "COMPLETED",
-      },
-    });
+    const isDeveloper = app.developerId === session.id;
 
-    if (!purchase) {
-      return NextResponse.json({ error: "请先购买该应用" }, { status: 403 });
+    // 检查使用权限：买断 / 按次剩余 / 免费
+    let canUse = false;
+
+    if (!isDeveloper) {
+      // 1. 买断
+      const buyout = await prisma.purchase.findFirst({
+        where: { userId: session.id, appId, purchaseType: "BUYOUT" },
+      });
+      if (buyout) {
+        canUse = true;
+      } else {
+        // 2. 按次剩余
+        const perUseRecords = await prisma.purchase.findMany({
+          where: { userId: session.id, appId, purchaseType: "PER_USE", remainingUses: { gt: 0 } },
+          orderBy: { createdAt: "asc" },
+        });
+        if (perUseRecords.length > 0) {
+          const target = perUseRecords[0];
+          await prisma.purchase.update({
+            where: { id: target.id },
+            data: { remainingUses: { decrement: 1 } },
+          });
+          canUse = true;
+        } else if (app.price === 0 && app.pricePerUse < 0) {
+          // 3. 免费应用：自动创建一条买断记录
+          await prisma.purchase.create({
+            data: {
+              userId: session.id,
+              appId,
+              pointsCost: 0,
+              purchaseType: "BUYOUT",
+              remainingUses: 0,
+              developerEarning: 0,
+              platformEarning: 0,
+            },
+          });
+          canUse = true;
+        }
+      }
+    } else {
+      canUse = true; // 开发者自己
     }
 
-    // 将该用户对该应用的所有旧 token 标记为失效
+    if (!canUse) {
+      return NextResponse.json({ error: "请先购买或按次使用该应用" }, { status: 403 });
+    }
+
+    // 将旧 token 标记为失效
     await prisma.accessToken.updateMany({
-      where: {
-        userId: session.id,
-        appId: appId,
-        status: "ACTIVE",
-      },
-      data: {
-        status: "USED",
-        usedAt: new Date(),
-      },
+      where: { userId: session.id, appId, status: "ACTIVE" },
+      data: { status: "USED", usedAt: new Date() },
     });
 
-    // 生成新的一次性 token（30 分钟有效期）
+    // 生成新 token（30 分钟有效）
     const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     await prisma.accessToken.create({
       data: {
         userId: session.id,
-        appId: appId,
-        token: token,
+        appId,
+        token,
         status: "ACTIVE",
-        expiresAt: expiresAt,
+        expiresAt,
       },
     });
 
-    // 增加使用次数
     await prisma.app.update({
       where: { id: appId },
       data: { downloadCount: { increment: 1 } },

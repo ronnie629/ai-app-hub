@@ -26,6 +26,7 @@ export default async function EditAppPage({
     category: app.category,
     appType: app.appType,
     price: app.price,
+    pricePerUse: app.pricePerUse,
     accessUrl: app.accessUrl,
     usageInstructions: app.usageInstructions,
     coverImage: app.coverImage,

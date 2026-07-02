@@ -52,6 +52,7 @@ export default async function AppDetailPage({
     coverImage: app.coverImage,
     screenshots,
     price: app.price,
+    pricePerUse: app.pricePerUse,
     usageInstructions: app.usageInstructions,
     accessUrl: app.accessUrl,
     tags,
@@ -78,17 +79,30 @@ export default async function AppDetailPage({
 
   // 计算当前用户购买状态（服务端渲染，避免前端闪烁）
   const session = await getSession();
-  let hasPurchased = false;
+  let purchaseStatus = {
+    purchased: false,
+    purchaseType: null as "BUYOUT" | "PER_USE" | null,
+    remainingUses: 0,
+    canUse: false,
+  };
   if (session) {
-    if (app.price === 0) {
-      hasPurchased = true;
-    } else if (app.developerId === session.id) {
-      hasPurchased = true;
+    if (app.developerId === session.id) {
+      purchaseStatus = { purchased: true, purchaseType: "BUYOUT", remainingUses: -1, canUse: true };
     } else {
-      const purchase = await prisma.purchase.findFirst({
-        where: { userId: session.id, appId: app.id },
+      const buyout = await prisma.purchase.findFirst({
+        where: { userId: session.id, appId: app.id, purchaseType: "BUYOUT" },
       });
-      hasPurchased = !!purchase;
+      if (buyout) {
+        purchaseStatus = { purchased: true, purchaseType: "BUYOUT", remainingUses: -1, canUse: true };
+      } else {
+        const perUseRecords = await prisma.purchase.findMany({
+          where: { userId: session.id, appId: app.id, purchaseType: "PER_USE" },
+        });
+        const remainingUses = perUseRecords.reduce((sum, r) => sum + r.remainingUses, 0);
+        if (remainingUses > 0) {
+          purchaseStatus = { purchased: true, purchaseType: "PER_USE", remainingUses, canUse: true };
+        }
+      }
     }
   }
 
@@ -103,7 +117,7 @@ export default async function AppDetailPage({
         <span className="text-gray-700 truncate">{app.title}</span>
       </nav>
 
-      <AppDetailClient app={appData} hasPurchased={hasPurchased} otherApps={otherApps.map((a) => ({
+      <AppDetailClient app={appData} hasPurchased={purchaseStatus.purchased} purchaseStatus={purchaseStatus} otherApps={otherApps.map((a) => ({
         ...a,
         createdAt: a.createdAt.toISOString(),
       }))} />

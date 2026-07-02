@@ -10,6 +10,7 @@ interface AppCardProps {
     appType: string;
     coverImage: string | null;
     price: number;
+    pricePerUse?: number;
     downloadCount: number;
     rating: number;
     createdAt: Date | string;
@@ -43,13 +44,21 @@ export function AppCard({ app, compact = false }: AppCardProps) {
           )}
           {/* Price badge */}
           <div className="absolute top-2 right-2">
-            {app.price === 0 ? (
+            {app.price === 0 && (app.pricePerUse === undefined || app.pricePerUse < 0) ? (
               <span className="rounded-full bg-green-500 px-2 py-0.5 text-xs font-medium text-white">
                 免费
               </span>
-            ) : (
+            ) : app.price > 0 ? (
               <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-medium text-white">
                 ⚡{formatPoints(app.price)}
+              </span>
+            ) : app.pricePerUse !== undefined && app.pricePerUse >= 0 ? (
+              <span className="rounded-full bg-indigo-500 px-2 py-0.5 text-xs font-medium text-white">
+                ⚡{formatPoints(app.pricePerUse)}/次
+              </span>
+            ) : (
+              <span className="rounded-full bg-green-500 px-2 py-0.5 text-xs font-medium text-white">
+                免费
               </span>
             )}
           </div>
