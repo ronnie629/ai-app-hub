@@ -144,3 +144,18 @@ model Notification {
   @@index([userId])
   @@map("notifications")
 }
+
+model AccessToken {
+  id        String    @id @default(cuid())
+  userId    String
+  appId     String
+  token     String    @unique
+  status    String    @default("ACTIVE") // ACTIVE | USED | EXPIRED
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, appId])
+  @@index([token])
+  @@map("access_tokens")
+}

@@ -46,4 +46,6 @@ next-env.d.ts
 .env
 .edgeone/*
 .tef_dist/*
-  
+  screenshots/
+scripts/
+*.zip

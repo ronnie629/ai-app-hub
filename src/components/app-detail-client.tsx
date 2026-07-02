@@ -92,6 +92,7 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
   });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [accessing, setAccessing] = useState(false);
 
   // 开发者回复
   const [replyingId, setReplyingId] = useState<string | null>(null);
@@ -183,6 +184,29 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
       setMessage("网络错误，请重试");
     } finally {
       setPurchasing(false);
+    }
+  };
+
+  const handleUseApp = async () => {
+    if (!user) {
+      window.location.href = `/login?redirect=/app/${app.id}`;
+      return;
+    }
+    setAccessing(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/apps/${app.id}/access`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.useUrl) {
+        // 在新标签页打开代理页面
+        window.open(data.useUrl, "_blank");
+      } else {
+        setMessage(data.error || "获取访问权限失败");
+      }
+    } catch {
+      setMessage("网络错误，请重试");
+    } finally {
+      setAccessing(false);
     }
   };
 
@@ -421,15 +445,8 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
                 )}
                 {hasPurchased && app.accessUrl && (
                   <div className="mt-6 rounded-xl bg-indigo-50 p-4">
-                    <p className="text-sm font-medium text-indigo-700 mb-2">访问地址</p>
-                    <a
-                      href={app.accessUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 underline break-all"
-                    >
-                      {app.accessUrl}
-                    </a>
+                    <p className="text-sm font-medium text-indigo-700 mb-2">访问方式</p>
+                    <p className="text-sm text-indigo-600">点击右侧「立即使用」按钮即可安全访问应用，每次使用需重新点击。</p>
                   </div>
                 )}
               </div>
@@ -691,14 +708,13 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
             <div className="mt-4 space-y-2">
               {hasPurchased ? (
                 app.accessUrl ? (
-                  <a
-                    href={app.accessUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-green-700"
+                  <button
+                    onClick={handleUseApp}
+                    disabled={accessing}
+                    className="block w-full rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
                   >
-                    立即使用 →
-                  </a>
+                    {accessing ? "正在生成访问链接..." : "立即使用 →"}
+                  </button>
                 ) : (
                   <div className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-medium text-green-700">
                     ✓ 已购买
@@ -706,14 +722,13 @@ export function AppDetailClient({ app, otherApps }: AppDetailClientProps) {
                 )
               ) : app.price === 0 ? (
                 app.accessUrl ? (
-                  <a
-                    href={app.accessUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full rounded-xl bg-indigo-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-700"
+                  <button
+                    onClick={handleUseApp}
+                    disabled={accessing}
+                    className="block w-full rounded-xl bg-indigo-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    免费使用 →
-                  </a>
+                    {accessing ? "正在生成访问链接..." : "免费使用 →"}
+                  </button>
                 ) : (
                   <button className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white">
                     获取应用
