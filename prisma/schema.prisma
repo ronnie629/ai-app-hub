@@ -98,11 +98,15 @@ model Review {
   appId     String
   rating    Int
   comment   String   @default("")
+  tags      String   @default("[]")
+  reply     String?
+  repliedAt DateTime?
   createdAt DateTime @default(now())
 
   app       App      @relation(fields: [appId], references: [id])
 
   @@unique([userId, appId])
+  @@index([rating])
   @@map("reviews")
 }
 

@@ -68,6 +68,9 @@ export default async function AppDetailPage({
       id: r.id,
       rating: r.rating,
       comment: r.comment,
+      tags: safeJsonParse<string[]>(r.tags, []),
+      reply: r.reply,
+      repliedAt: r.repliedAt?.toISOString() || null,
       createdAt: r.createdAt.toISOString(),
     })),
   };
