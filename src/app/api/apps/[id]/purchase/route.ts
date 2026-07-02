@@ -21,8 +21,10 @@ export async function POST(
       return NextResponse.json({ error: "应用不存在或已下架" }, { status: 404 });
     }
 
-    // 判断开发者自己
-    const isDeveloper = app.developerId === session.id;
+    // 开发者不能购买自己的应用
+    if (app.developerId === session.id) {
+      return NextResponse.json({ error: "不能购买自己的应用" }, { status: 400 });
+    }
 
     // 买断：检查是否已有任何完成记录（买断永久有效）
     if (type === "BUYOUT") {
@@ -42,7 +44,7 @@ export async function POST(
     }
 
     // 免费应用（买断或按次价格为0），直接创建记录
-    if (price === 0 && !isDeveloper) {
+    if (price === 0) {
       const purchase = await prisma.purchase.create({
         data: {
           userId: session.id,
@@ -72,10 +74,43 @@ export async function POST(
       return NextResponse.json({ error: "积分不足，请先充值" }, { status: 400 });
     }
 
-    // 平台抽成
+    // 获取开发者等级对应的分润比例
+    let devShareRate = 0.9; // 默认开发者得 90%
     let platformFeeRate = 0.1;
-    const config = await prisma.platformConfig.findUnique({ where: { id: "default" } });
-    if (config) platformFeeRate = config.platformFeeRate;
+
+    // 查询开发者等级配置
+    const devLevels = await prisma.userLevel.findMany({
+      where: { userType: "DEVELOPER" },
+      orderBy: { level: "asc" },
+    });
+
+    if (devLevels.length > 0) {
+      // 计算开发者的发布应用数和赚取积分
+      const [appCount, earningAgg] = await Promise.all([
+        prisma.app.count({ where: { developerId: app.developerId } }),
+        prisma.purchase.aggregate({
+          where: { app: { developerId: app.developerId } },
+          _sum: { developerEarning: true },
+        }),
+      ]);
+      const totalEarnings = earningAgg._sum.developerEarning || 0;
+
+      // 找到开发者当前等级（从高到低匹配）
+      let matchedLevel = devLevels[0];
+      for (const lv of [...devLevels].reverse()) {
+        if (appCount >= lv.minApps && totalEarnings >= lv.minEarnings) {
+          matchedLevel = lv;
+          break;
+        }
+      }
+      devShareRate = matchedLevel.devShareRate;
+      platformFeeRate = 1 - devShareRate;
+    } else {
+      // 无等级配置时，使用全局 PlatformConfig
+      const config = await prisma.platformConfig.findUnique({ where: { id: "default" } });
+      if (config) platformFeeRate = config.platformFeeRate;
+      devShareRate = 1 - platformFeeRate;
+    }
 
     const platformEarning = Math.floor(price * platformFeeRate);
     const developerEarning = price - platformEarning;
@@ -88,8 +123,8 @@ export async function POST(
       });
 
       // 增加开发者收入
-      if (!isDeveloper && developerEarning > 0) {
-        await tx.user.update({
+      if (developerEarning > 0) {
+        const updatedDeveloper = await tx.user.update({
           where: { id: app.developerId },
           data: { points: { increment: developerEarning } },
         });
@@ -99,7 +134,7 @@ export async function POST(
             userId: app.developerId,
             type: "EARNING",
             amount: developerEarning,
-            balanceAfter: 0,
+            balanceAfter: updatedDeveloper.points,
             description: `应用「${app.title}」${type === "PER_USE" ? "按次使用" : "买断"}收入`,
             relatedId: appId,
           },
@@ -116,6 +151,7 @@ export async function POST(
           remainingUses: type === "PER_USE" ? 1 : 0,
           developerEarning,
           platformEarning,
+          platformFeeRate,
         },
       });
 

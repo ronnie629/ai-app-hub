@@ -32,6 +32,7 @@ interface AppData {
     reply: string | null;
     repliedAt: string | null;
     createdAt: string;
+    user: { name: string; avatar: string | null } | null;
   }[];
 }
 
@@ -212,11 +213,6 @@ export function AppDetailClient({
             : "购买成功！现在可以永久使用该应用了。"
         );
         setUser({ ...user, points: data.remainingPoints });
-        setTimeout(() => {
-          if (window.confirm("购买成功！是否立即评价？")) {
-            setShowReviewModal(true);
-          }
-        }, 500);
       } else {
         setMessage(data.error || "购买失败");
       }
@@ -249,7 +245,7 @@ export function AppDetailClient({
       const res = await fetch(`/api/apps/${app.id}/access`, { method: "POST" });
       const data = await res.json();
       if (res.ok && data.useUrl) {
-        newWindow.location.href = data.useUrl;
+        newWindow.location.href = window.location.origin + data.useUrl;
       } else {
         newWindow.close();
         setMessage(data.error || "获取访问权限失败");
@@ -595,7 +591,15 @@ export function AppDetailClient({
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-medium">
+                                {review.user?.name?.charAt(0).toUpperCase() || "U"}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {review.user?.name || "匿名用户"}
+                              </span>
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-1">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <span
                                   key={star}
@@ -606,9 +610,9 @@ export function AppDetailClient({
                                   ★
                                 </span>
                               ))}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">
-                              {timeAgo(review.createdAt)}
+                              <span className="ml-1.5 text-xs text-gray-400">
+                                {timeAgo(review.createdAt)}
+                              </span>
                             </div>
                           </div>
                           {isDeveloper && !review.reply && (
@@ -740,32 +744,6 @@ export function AppDetailClient({
         {/* 右侧：浮动购买卡 */}
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            {/* 价格 */}
-            <div className="text-center pb-4 border-b border-gray-100">
-              {app.price === 0 && app.pricePerUse < 0 ? (
-                <div className="text-3xl font-bold text-green-600">免费</div>
-              ) : (
-                <div className="space-y-2">
-                  {app.price > 0 && (
-                    <div>
-                      <div className="text-3xl font-bold text-amber-700">
-                        <span className="text-amber-500">⚡</span> {formatPoints(app.price)}
-                      </div>
-                      <div className="text-xs text-gray-400">买断价</div>
-                    </div>
-                  )}
-                  {app.pricePerUse >= 0 && (
-                    <div>
-                      <div className="text-xl font-bold text-indigo-700">
-                        <span className="text-indigo-500">⚡</span> {formatPoints(app.pricePerUse)}
-                      </div>
-                      <div className="text-xs text-gray-400">按次价</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* 购买/使用按钮 */}
             <div className="mt-4 space-y-2">
               {purchaseStatus.purchased && purchaseStatus.canUse ? (

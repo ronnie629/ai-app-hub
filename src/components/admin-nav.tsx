@@ -9,6 +9,8 @@ export function AdminNav({ active }: AdminNavProps) {
     { href: "/admin", key: "overview", label: "概览" },
     { href: "/admin/apps", key: "apps", label: "应用审核" },
     { href: "/admin/users", key: "users", label: "用户管理" },
+    { href: "/admin/levels", key: "levels", label: "等级与分润配置" },
+    { href: "/admin/revenue", key: "revenue", label: "平台收入记录" },
   ];
 
   return (

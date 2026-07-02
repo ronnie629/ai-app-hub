@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { CATEGORIES, APP_TYPES, APP_STATUS, safeJsonParse, formatPoints, formatDate, timeAgo } from "@/lib/constants";
+import { CATEGORIES, APP_TYPES, safeJsonParse } from "@/lib/constants";
 import { AppDetailClient } from "@/components/app-detail-client";
 import Link from "next/link";
 
@@ -17,7 +17,7 @@ export default async function AppDetailPage({
     include: {
       developer: true,
       reviews: {
-        include: { /* user relation not available, skip */ },
+        include: { user: { select: { id: true, name: true, avatar: true } } },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -74,6 +74,7 @@ export default async function AppDetailPage({
       reply: r.reply,
       repliedAt: r.repliedAt?.toISOString() || null,
       createdAt: r.createdAt.toISOString(),
+      user: r.user ? { name: r.user.name, avatar: r.user.avatar } : null,
     })),
   };
 

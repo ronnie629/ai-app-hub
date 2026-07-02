@@ -86,16 +86,30 @@ export async function GET(req: Request) {
     // Process daily purchase data
     const dailyData: Record<string, { purchases: number; revenue: number }> = {};
     const dayMs = 24 * 60 * 60 * 1000;
-    for (let i = 0; i <= 29; i++) {
-      const d = new Date(dateFrom.getTime() + i * dayMs);
-      const key = d.toISOString().split("T")[0];
-      dailyData[key] = { purchases: 0, revenue: 0 };
-    }
-    for (const p of purchasesByDay) {
-      const key = p.createdAt.toISOString().split("T")[0];
-      if (dailyData[key]) {
+    const now = Date.now();
+
+    if (period === "all") {
+      // all: 按月聚合，不生成空天
+      for (const p of purchasesByDay) {
+        const key = p.createdAt.toISOString().split("T")[0];
+        if (!dailyData[key]) dailyData[key] = { purchases: 0, revenue: 0 };
         dailyData[key].purchases += p._count;
         dailyData[key].revenue += p._sum.pointsCost || 0;
+      }
+    } else {
+      // 7d or 30d: 生成连续日期
+      const numDays = period === "30d" ? 30 : 7;
+      for (let i = 0; i < numDays; i++) {
+        const d = new Date(now - (numDays - 1 - i) * dayMs);
+        const key = d.toISOString().split("T")[0];
+        dailyData[key] = { purchases: 0, revenue: 0 };
+      }
+      for (const p of purchasesByDay) {
+        const key = p.createdAt.toISOString().split("T")[0];
+        if (dailyData[key]) {
+          dailyData[key].purchases += p._count;
+          dailyData[key].revenue += p._sum.pointsCost || 0;
+        }
       }
     }
 

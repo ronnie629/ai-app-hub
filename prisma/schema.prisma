@@ -30,6 +30,7 @@ model User {
   apps         App[]
   purchases    Purchase[]
   transactions PointsTransaction[]
+  reviews      Review[]
 
   @@map("users")
 }
@@ -71,6 +72,7 @@ model Purchase {
   remainingUses    Int      @default(0) // 买断为0，按次购买为剩余次数
   developerEarning Int      @default(0)
   platformEarning  Int      @default(0)
+  platformFeeRate  Float    @default(0.1) // 购买时的平台抽佣比例快照
   status           String   @default("COMPLETED")
   createdAt        DateTime @default(now())
 
@@ -107,6 +109,7 @@ model Review {
   createdAt DateTime @default(now())
 
   app       App      @relation(fields: [appId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, appId])
   @@index([rating])
@@ -161,4 +164,21 @@ model AccessToken {
   @@index([userId, appId])
   @@index([token])
   @@map("access_tokens")
+}
+
+model UserLevel {
+  id             String   @id @default(cuid())
+  userType       String   // "USER" | "DEVELOPER"
+  level          Int      // 1=初级, 2=中级, 3=高级
+  name           String   // 等级名称
+  minConsumption Int      @default(0) // 用户：最低消费积分
+  minApps        Int      @default(0) // 开发者：最低发布应用数
+  minEarnings    Int      @default(0) // 开发者：最低赚取积分
+  devShareRate   Float    @default(0.9) // 开发者分润比例（如0.7=开发者得70%）
+  color          String   @default("#6366f1") // 等级颜色
+  icon           String   @default("") // 等级图标
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_levels")
 }
