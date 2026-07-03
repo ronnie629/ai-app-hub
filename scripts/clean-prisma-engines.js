@@ -1,32 +1,85 @@
-// 仅在 Linux serverless 部署时执行：删除非目标平台的 Prisma query engine binary
-// EdgeOne Node SSR 用的是 linux-musl-openssl-3.0.x
+// 仅在 Linux serverless 部署时执行：删除冗余依赖以符合 128MiB 限制
+// EdgeOne Node SSR 用的是 linux-musl
 const fs = require("fs");
 const path = require("path");
 
-// 只在 Linux 上执行清理（保留 macOS/Windows 引擎供本地开发）
+// 只在 Linux 上执行清理（保留 macOS/Windows 资源供本地开发）
 if (process.platform !== "linux") {
-  console.log(`[clean-prisma-engines] platform=${process.platform}, skipping`);
+  console.log(`[clean-deploy-deps] platform=${process.platform}, skipping`);
   process.exit(0);
 }
 
-const KEEP = "libquery_engine-linux-musl-openssl-3.0.x.so.node";
-const prismaClientDir = path.join(__dirname, "..", "node_modules", ".prisma", "client");
-
-if (!fs.existsSync(prismaClientDir)) {
-  console.log("[clean-prisma-engines] prisma client not found, skipping");
-  process.exit(0);
-}
-
-let removed = 0;
-let saved = 0;
-for (const file of fs.readdirSync(prismaClientDir)) {
-  if (file.startsWith("libquery_engine-") && file !== KEEP) {
-    const filePath = path.join(prismaClientDir, file);
-    const stat = fs.statSync(filePath);
-    fs.unlinkSync(filePath);
-    removed++;
-    saved += stat.size;
-    console.log(`[clean-prisma-engines] removed ${file} (${(stat.size / 1024 / 1024).toFixed(1)}M)`);
+let totalSaved = 0;
+function removePattern(dir, pattern) {
+  if (!fs.existsSync(dir)) return;
+  for (const file of fs.readdirSync(dir)) {
+    if (pattern.test(file)) {
+      const fp = path.join(dir, file);
+      const stat = fs.statSync(fp);
+      if (stat.isFile()) {
+        fs.unlinkSync(fp);
+        totalSaved += stat.size;
+        console.log(`[clean-deploy-deps] removed ${fp.replace(__dirname + "/../", "")} (${(stat.size/1024/1024).toFixed(1)}M)`);
+      }
+    }
   }
 }
-console.log(`[clean-prisma-engines] done. removed ${removed} files, saved ${(saved / 1024 / 1024).toFixed(1)}M`);
+
+// 1. Prisma 引擎：只保留 linux-musl 版本
+const prismaClientDir = path.join(__dirname, "..", "node_modules", ".prisma", "client");
+removePattern(prismaClientDir, /^libquery_engine-(?!linux-musl).*\.(dylib|so)\.node$/);
+removePattern(prismaClientDir, /^libquery_engine-debian.*\.so\.node$/);
+
+// 2. @prisma/engines 整个 39M：deploy 时 schema-engine 用不到
+const prismaEnginesDir = path.join(__dirname, "..", "node_modules", "@prisma", "engines");
+if (fs.existsSync(prismaEnginesDir)) {
+  for (const f of fs.readdirSync(prismaEnginesDir)) {
+    if (/^schema-engine-(?!linux-musl)/.test(f) || /libquery_engine/.test(f)) {
+      const fp = path.join(prismaEnginesDir, f);
+      const st = fs.statSync(fp);
+      if (st.isFile()) {
+        fs.unlinkSync(fp);
+        totalSaved += st.size;
+        console.log(`[clean-deploy-deps] removed @prisma/engines/${f} (${(st.size/1024/1024).toFixed(1)}M)`);
+      }
+    }
+  }
+}
+
+// 3. 平台特定包：macOS / Windows 专用 binary
+const platformPatterns = [
+  "lightningcss-darwin-arm64",
+  "lightningcss-darwin-x64",
+  "lightningcss-win32-x64-msvc",
+  "@img/sharp-darwin-arm64",
+  "@img/sharp-darwin-x64",
+  "@img/sharp-win32-x64",
+  "@esbuild/darwin-arm64",
+  "@esbuild/darwin-x64",
+  "@esbuild/win32-x64",
+  "@rollup/rollup-darwin-arm64",
+  "@rollup/rollup-darwin-x64",
+];
+for (const pkg of platformPatterns) {
+  const dir = path.join(__dirname, "..", "node_modules", pkg);
+  if (fs.existsSync(dir)) {
+    const size = fs.statSync(dir).size;
+    fs.rmSync(dir, { recursive: true, force: true });
+    totalSaved += size;
+    console.log(`[clean-deploy-deps] removed ${pkg} (${(size/1024/1024).toFixed(1)}M)`);
+  }
+}
+
+// 4. tsx / typescript：devDeps 但 postinstall 不需要
+const devPackages = ["tsx", "typescript", "@types"];
+for (const pkg of devPackages) {
+  const dir = path.join(__dirname, "..", "node_modules", pkg);
+  if (fs.existsSync(dir)) {
+    const size = fs.statSync(dir).size;
+    fs.rmSync(dir, { recursive: true, force: true });
+    totalSaved += size;
+    console.log(`[clean-deploy-deps] removed ${pkg} (${(size/1024/1024).toFixed(1)}M)`);
+  }
+}
+
+console.log(`[clean-deploy-deps] done. saved ${(totalSaved/1024/1024).toFixed(1)}M`);
