@@ -16,39 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }
 
-    const { optionIndex } = await req.json();
-    const option = RECHARGE_OPTIONS[optionIndex];
-    if (!option) {
-      return NextResponse.json({ error: "无效的充值选项" }, { status: 400 });
-    }
-
-    const pointsToAdd = option.points + option.bonus;
-
-    // MVP: Simulate recharge (no real payment)
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedUser = await tx.user.update({
-        where: { id: session.id },
-        data: { points: { increment: pointsToAdd } },
-      });
-
-      await tx.pointsTransaction.create({
-        data: {
-          userId: session.id,
-          type: "RECHARGE",
-          amount: pointsToAdd,
-          balanceAfter: updatedUser.points,
-          description: `充值${option.price}获得${option.points}积分${option.bonus > 0 ? `（赠送${option.bonus}）` : ""}`,
-        },
-      });
-
-      return updatedUser;
-    });
-
-    return NextResponse.json({
-      ok: true,
-      pointsAdded: pointsToAdd,
-      balance: result.points,
-    });
+    // Real payment not yet integrated — disable for production safety
+    return NextResponse.json({ error: "充值功能暂未开放，敬请期待" }, { status: 403 });
   } catch (error) {
     console.error("Recharge error:", error);
     return NextResponse.json({ error: "充值失败" }, { status: 500 });

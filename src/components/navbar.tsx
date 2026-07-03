@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface SessionUser {
   id: string;
@@ -15,18 +15,32 @@ interface SessionUser {
 export function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      setUser(data.user || null);
+    } catch {
+      // Silent fail — default to not logged in
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Only fetch on mount, not on every route change
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) setUser(data.user);
-      })
-      .catch(() => {
-        // 静默失败 - 默认未登录
-      });
-  }, [pathname]);
+    fetchUser();
+  }, [fetchUser]);
+
+  // Listen for custom auth events (login/logout/points change)
+  useEffect(() => {
+    const handler = () => fetchUser();
+    window.addEventListener("auth-change", handler);
+    return () => window.removeEventListener("auth-change", handler);
+  }, [fetchUser]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -45,6 +59,7 @@ export function Navbar() {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     setMenuOpen(false);
+    window.dispatchEvent(new Event("auth-change"));
     window.location.href = "/";
   };
 
@@ -79,7 +94,13 @@ export function Navbar() {
 
           {/* User area */}
           <div className="flex items-center gap-3">
-            {user ? (
+            {loading ? (
+              /* Skeleton while loading — no flash of login/register buttons */
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-20 rounded-lg bg-gray-100 animate-pulse" />
+                <div className="h-8 w-20 rounded-lg bg-gray-100 animate-pulse" />
+              </div>
+            ) : user ? (
               <>
                 <Link
                   href="/dashboard/notifications"

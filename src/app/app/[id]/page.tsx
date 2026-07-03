@@ -23,7 +23,7 @@ export default async function AppDetailPage({
     },
   });
 
-  if (!app || app.status === "SUSPENDED") {
+  if (!app || app.status !== "ACTIVE") {
     notFound();
   }
 

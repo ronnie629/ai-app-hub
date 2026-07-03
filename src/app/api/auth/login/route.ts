@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setSession } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import * as bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
+    // Rate limit check
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const { allowed } = rateLimit(ip);
+    if (!allowed) {
+      return NextResponse.json({ error: "请求过于频繁，请稍后再试" }, { status: 429 });
+    }
+
     const { email, password } = await req.json();
 
     if (!email || !password) {
@@ -12,13 +20,9 @@ export async function POST(req: Request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 401 });
-    }
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      return NextResponse.json({ error: "密码错误" }, { status: 401 });
+    const valid = user ? await bcrypt.compare(password, user.passwordHash) : false;
+    if (!user || !valid) {
+      return NextResponse.json({ error: "邮箱或密码错误" }, { status: 401 });
     }
 
     // Update last login time
@@ -33,6 +37,7 @@ export async function POST(req: Request) {
       name: user.name,
       role: user.role,
       points: user.points,
+      tokenVersion: user.tokenVersion,
     });
 
     return NextResponse.json({ ok: true });

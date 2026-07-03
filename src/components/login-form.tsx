@@ -57,6 +57,7 @@ export function LoginForm({ redirect }: LoginFormProps) {
         <input
           type="password"
           required
+          minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"

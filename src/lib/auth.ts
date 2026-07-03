@@ -1,7 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
-const secretKey = process.env.AUTH_SECRET || "dev-secret-key-change-in-production";
+const secretKey = process.env.AUTH_SECRET;
+if (!secretKey) {
+  throw new Error("AUTH_SECRET environment variable is required. Set it in .env before starting the app.");
+}
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export interface SessionUser {
@@ -10,6 +14,7 @@ export interface SessionUser {
   name: string;
   role: string;
   points: number;
+  tokenVersion: number;
 }
 
 export async function encrypt(payload: SessionUser) {
@@ -35,7 +40,16 @@ export async function getSession(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
   if (!token) return null;
-  return await decrypt(token);
+  const session = await decrypt(token);
+  if (!session) return null;
+
+  // Validate tokenVersion — if user changed password, old tokens are invalid
+  const user = await prisma.user.findUnique({ where: { id: session.id }, select: { tokenVersion: true } });
+  if (!user || user.tokenVersion !== session.tokenVersion) {
+    return null;
+  }
+
+  return session;
 }
 
 export async function setSession(user: SessionUser) {

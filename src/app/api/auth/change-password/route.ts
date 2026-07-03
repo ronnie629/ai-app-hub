@@ -15,6 +15,12 @@ export async function POST(req: Request) {
   if (newPassword.length < 6) {
     return NextResponse.json({ error: "新密码至少 6 位" }, { status: 400 });
   }
+  if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    return NextResponse.json({ error: "新密码需包含字母和数字" }, { status: 400 });
+  }
+  if (oldPassword === newPassword) {
+    return NextResponse.json({ error: "新密码不能与旧密码相同" }, { status: 400 });
+  }
 
   const user = await prisma.user.findUnique({ where: { id: session.id } });
   if (!user) return NextResponse.json({ error: "用户不存在" }, { status: 404 });
@@ -25,9 +31,10 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
+  // Increment tokenVersion to invalidate all existing sessions
   await prisma.user.update({
     where: { id: session.id },
-    data: { passwordHash },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
   });
 
   return NextResponse.json({ ok: true });
