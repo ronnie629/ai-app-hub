@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   description: "发现、发布和使用优质AI应用，连接开发者与用户",
 };
 
+// CloudBase 部署：构建时没有 DATABASE_URL，
+// 强制所有页面走 SSR（动态渲染），不预渲染
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

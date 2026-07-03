@@ -15,6 +15,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // 全局默认 dynamic 渲染：src/app/layout.tsx 里已加
+  // export const dynamic = "force-dynamic"，避免 build 阶段预渲染触发 DB 查询
 };
 
 module.exports = nextConfig;
