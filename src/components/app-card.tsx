@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { CATEGORIES, APP_TYPES, safeJsonParse, formatPoints, timeAgo } from "@/lib/constants";
 
 interface AppCardProps {
@@ -31,11 +32,13 @@ export function AppCard({ app, compact = false }: AppCardProps) {
           className={`${compact ? "h-32" : "h-40"} relative overflow-hidden bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100`}
         >
           {app.coverImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={app.coverImage}
               alt={app.title}
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              quality={85}
             />
           ) : (
             <div className="flex h-full items-center justify-center">

@@ -7,7 +7,10 @@ interface SearchParams {
   category?: string;
   q?: string;
   sort?: string;
+  page?: string;
 }
+
+const PAGE_SIZE = 12;
 
 export default async function MarketPage({
   searchParams,
@@ -18,6 +21,7 @@ export default async function MarketPage({
   const category = params.category || "";
   const query = params.q || "";
   const sort = params.sort || "popular";
+  const currentPage = parseInt(params.page || "1") || 1;
 
   const where = {
     status: "APPROVED" as const,
@@ -41,17 +45,27 @@ export default async function MarketPage({
           ? { price: "desc" as const }
           : { downloadCount: "desc" as const };
 
-  const apps = await prisma.app.findMany({
-    where,
-    orderBy,
-    include: { developer: true },
-  });
+  // 并行查询：应用列表 + 总数
+  const [apps, totalCount] = await Promise.all([
+    prisma.app.findMany({
+      where,
+      orderBy,
+      include: { developer: true },
+      skip: (currentPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.app.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">应用市场</h1>
-        <p className="text-gray-500 mt-1">发现 {apps.length} 个优质 AI 应用</p>
+        <p className="text-gray-500 mt-1">
+          发现 {totalCount} 个优质 AI 应用（第 {currentPage}/{totalPages} 页）
+        </p>
       </div>
 
       <MarketClient
@@ -63,6 +77,11 @@ export default async function MarketPage({
         initialCategory={category}
         initialQuery={query}
         initialSort={sort}
+        pagination={{
+          currentPage,
+          totalPages,
+          totalCount,
+        }}
       />
     </div>
   );

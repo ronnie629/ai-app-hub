@@ -18,12 +18,19 @@ interface AppData {
   developer: { name: string };
 }
 
+interface PaginationData {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 interface MarketClientProps {
   categories: { key: string; label: string; icon: string }[];
   apps: AppData[];
   initialCategory: string;
   initialQuery: string;
   initialSort: string;
+  pagination: PaginationData;
 }
 
 export function MarketClient({
@@ -32,19 +39,23 @@ export function MarketClient({
   initialCategory,
   initialQuery,
   initialSort,
+  pagination,
 }: MarketClientProps) {
   const router = useRouter();
   const [category, setCategory] = useState(initialCategory);
   const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState(initialSort);
 
-  const updateUrl = (newCategory: string, newQuery: string, newSort: string) => {
+  const updateUrl = (newCategory: string, newQuery: string, newSort: string, newPage?: number) => {
     const params = new URLSearchParams();
     if (newCategory) params.set("category", newCategory);
     if (newQuery) params.set("q", newQuery);
     if (newSort && newSort !== "popular") params.set("sort", newSort);
+    if (newPage && newPage > 1) params.set("page", newPage.toString());
     router.push(`/market?${params.toString()}`);
   };
+
+  const { currentPage, totalPages } = pagination;
 
   return (
     <div>
@@ -58,7 +69,7 @@ export function MarketClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") updateUrl(category, query, sort);
+                if (e.key === "Enter") updateUrl(category, query, sort, 1);
               }}
               placeholder="搜索 AI 应用..."
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 pl-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
@@ -68,7 +79,7 @@ export function MarketClient({
             </span>
           </div>
           <button
-            onClick={() => updateUrl(category, query, sort)}
+            onClick={() => updateUrl(category, query, sort, 1)}
             className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
           >
             搜索
@@ -80,7 +91,7 @@ export function MarketClient({
           <button
             onClick={() => {
               setCategory("");
-              updateUrl("", query, sort);
+              updateUrl("", query, sort, 1);
             }}
             className={`rounded-full px-4 py-1.5 text-sm font-medium ${
               !category
@@ -95,7 +106,7 @@ export function MarketClient({
               key={cat.key}
               onClick={() => {
                 setCategory(cat.key);
-                updateUrl(cat.key, query, sort);
+                updateUrl(cat.key, query, sort, 1);
               }}
               className={`rounded-full px-4 py-1.5 text-sm font-medium ${
                 category === cat.key
@@ -121,7 +132,7 @@ export function MarketClient({
               key={s.key}
               onClick={() => {
                 setSort(s.key);
-                updateUrl(category, query, s.key);
+                updateUrl(category, query, s.key, 1);
               }}
               className={`rounded-lg px-3 py-1 ${
                 sort === s.key
@@ -145,11 +156,65 @@ export function MarketClient({
           <p className="text-gray-400 mt-2">试试换个关键词或分类吧</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {apps.map((app) => (
-            <AppCard key={app.id} app={app} compact />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {apps.map((app) => (
+              <AppCard key={app.id} app={app} compact />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-2">
+              <button
+                onClick={() => updateUrl(category, query, sort, currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => {
+                  const pageNum = i + 1;
+                  // 显示当前页附近的页码
+                  if (
+                    pageNum === 1 ||
+                    pageNum === totalPages ||
+                    (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)
+                  ) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => updateUrl(category, query, sort, pageNum)}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                          currentPage === pageNum
+                            ? "bg-indigo-600 text-white"
+                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  // 显示省略号
+                  if (pageNum === currentPage - 3 || pageNum === currentPage + 3) {
+                    return <span key={pageNum} className="px-2 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={() => updateUrl(category, query, sort, currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

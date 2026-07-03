@@ -65,6 +65,12 @@ model App {
   purchases         Purchase[]
   reviews           Review[]
 
+  @@index([status, createdAt]) // 市场页查询：按状态+时间
+  @@index([status, downloadCount]) // 市场页查询：按状态+下载量排序
+  @@index([status, rating]) // 市场页查询：按状态+评分排序
+  @@index([developerId, status]) // 我的应用：按开发者+状态
+  @@index([category, status]) // 分类筛选
+  @@index([appType, status]) // 类型筛选
   @@map("apps")
 }
 
@@ -84,6 +90,9 @@ model Purchase {
   user             User     @relation(fields: [userId], references: [id])
   app              App      @relation(fields: [appId], references: [id])
 
+  @@index([userId, createdAt]) // 用户购买记录：按用户+时间
+  @@index([appId, createdAt]) // 应用销售记录：按应用+时间
+  @@index([status, createdAt]) // 订单查询：按状态+时间
   @@map("purchases")
 }
 

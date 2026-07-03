@@ -1,30 +1,38 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
-import { safeJsonParse, timeAgo } from "@/lib/constants";
 import { AppCard } from "@/components/app-card";
 
 export default async function HomePage() {
-  // Get featured apps (most downloaded)
-  const featuredApps = await prisma.app.findMany({
-    where: { status: "APPROVED" },
-    orderBy: { downloadCount: "desc" },
-    take: 6,
-    include: { developer: true },
-  });
-
-  // Get newest apps
-  const newestApps = await prisma.app.findMany({
-    where: { status: "APPROVED" },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-    include: { developer: true },
-  });
-
-  // Get stats
-  const totalApps = await prisma.app.count({ where: { status: "APPROVED" } });
-  const totalUsers = await prisma.user.count();
-  const totalDownloads = await prisma.purchase.count();
+  // 并行查询：所有数据库查询同时执行
+  const [
+    featuredApps,
+    newestApps,
+    totalApps,
+    totalUsers,
+    totalDownloads,
+  ] = await Promise.all([
+    // 热门应用（下载量最高）
+    prisma.app.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { downloadCount: "desc" },
+      take: 6,
+      include: { developer: true },
+    }),
+    
+    // 最新应用
+    prisma.app.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      include: { developer: true },
+    }),
+    
+    // 统计数据
+    prisma.app.count({ where: { status: "APPROVED" } }),
+    prisma.user.count(),
+    prisma.purchase.count(),
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

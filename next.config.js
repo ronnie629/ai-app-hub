@@ -17,6 +17,20 @@ const nextConfig = {
   },
   // 全局默认 dynamic 渲染：src/app/layout.tsx 里已加
   // export const dynamic = "force-dynamic"，避免 build 阶段预渲染触发 DB 查询
+  
+  // 图片优化配置：允许从 Supabase Storage 加载图片
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+    formats: ["image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30天缓存
+  },
 };
 
 module.exports = nextConfig;
