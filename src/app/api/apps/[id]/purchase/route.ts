@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getDeveloperShareRate, refreshLevelSnapshot } from "@/lib/user-level";
 
 export async function POST(
   req: Request,
@@ -74,52 +75,18 @@ export async function POST(
       return NextResponse.json({ error: "积分不足，请先充值" }, { status: 400 });
     }
 
-    // 获取开发者等级对应的分润比例
-    let devShareRate = 0.9; // 默认开发者得 90%
-    let platformFeeRate = 0.1;
-
-    // 查询开发者等级配置
-    const devLevels = await prisma.userLevel.findMany({
-      where: { userType: "DEVELOPER" },
-      orderBy: { level: "asc" },
-    });
-
-    if (devLevels.length > 0) {
-      // 计算开发者的发布应用数和赚取积分
-      const [appCount, earningAgg] = await Promise.all([
-        prisma.app.count({ where: { developerId: app.developerId } }),
-        prisma.purchase.aggregate({
-          where: { app: { developerId: app.developerId } },
-          _sum: { developerEarning: true },
-        }),
-      ]);
-      const totalEarnings = earningAgg._sum.developerEarning || 0;
-
-      // 找到开发者当前等级（从高到低匹配）
-      let matchedLevel = devLevels[0];
-      for (const lv of [...devLevels].reverse()) {
-        if (appCount >= lv.minApps && totalEarnings >= lv.minEarnings) {
-          matchedLevel = lv;
-          break;
-        }
-      }
-      devShareRate = matchedLevel.devShareRate;
-      platformFeeRate = 1 - devShareRate;
-    } else {
-      // 无等级配置时，使用全局 PlatformConfig
-      const config = await prisma.platformConfig.findUnique({ where: { id: "default" } });
-      if (config) platformFeeRate = config.platformFeeRate;
-      devShareRate = 1 - platformFeeRate;
-    }
+    // 获取开发者等级对应的分润比例（含降级保护）
+    await refreshLevelSnapshot(app.developerId);
+    const { rate: devShareRate, platformFeeRate } = await getDeveloperShareRate(app.developerId);
 
     const platformEarning = Math.floor(price * platformFeeRate);
     const developerEarning = price - platformEarning;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 扣除用户积分
+      // 扣除用户积分 + 记录最后购买时间
       const updatedUser = await tx.user.update({
         where: { id: session.id },
-        data: { points: { decrement: price } },
+        data: { points: { decrement: price }, lastPurchaseAt: new Date() },
       });
 
       // 增加开发者收入

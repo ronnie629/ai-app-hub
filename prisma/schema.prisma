@@ -24,6 +24,10 @@ model User {
   workYears    Int?
   appDomains   String?
   lastLoginAt  DateTime?
+  lastPurchaseAt DateTime? // 最后一次消费时间，用于90天降级判定
+  lastLevelCheckAt DateTime? // 等级最近一次重算时间
+  devLevelSnapshot     Int      @default(1) // 降级保护：开发者当月保级分润用
+  devLevelSnapshotMonth String? // "YYYY-MM"，保护期月份
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
