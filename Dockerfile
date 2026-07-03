@@ -8,9 +8,12 @@ RUN apk add --no-cache libc6-compat openssl
 
 # 仅复制 lock 文件，利用 Docker 缓存层
 COPY package.json package-lock.json* ./
+COPY prisma ./prisma
 
 # 装 deps（含 devDeps，用于 build）
-RUN npm ci
+# 跳过 postinstall（prisma generate + clean-prisma-engines），
+# 那两步在 builder 阶段（有完整源码 + 锁文件能算 prisma engine）再跑
+RUN npm ci --ignore-scripts
 
 # ===== Stage 2: builder =====
 FROM node:20-alpine AS builder
@@ -26,8 +29,11 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# 生成 Prisma client
+# 生成 Prisma client（这时有完整的 prisma/schema.prisma）
 RUN npx prisma generate
+
+# 清理非 Linux 的 Prisma engine 二进制（已用 64M WASM 可以用脚本砍）
+RUN node scripts/clean-prisma-engines.js
 
 # 构建（next.config.js 里已设 typescript.ignoreBuildErrors）
 RUN npm run build
