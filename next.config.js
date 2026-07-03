@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // CloudBase / 容器部署：使用 standalone 模式
+  // 输出 .next/standalone/ 目录，包含精简的 node_modules 和 server.js
+  output: "standalone",
   // Prisma engine 文件需要被追踪
   outputFileTracingIncludes: {
     "/*": ["./node_modules/.prisma/client/**/*"],
   },
-  // EdgeOne 用 @edgeone/opennextjs-pages generator 处理 server bundle
-  // 不要用 output: 'standalone'，会干扰 EdgeOne 的资源打包
-  // 关掉 build 时的 TypeScript 类型检查，CI/部署环境不装 devDeps 也能 build
-  // 本地开发走 IDE/手动 tsc 仍可做类型校验
+  // 部署环境只装 production deps，devDeps 缺失
+  // 关掉 build 时的 TypeScript / ESLint 检查
   typescript: {
     ignoreBuildErrors: true,
   },

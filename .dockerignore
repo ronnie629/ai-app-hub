@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.DS_Store
+.env
+.env.local
+.workbuddy
+.edgeone
+.vercel
+*.log
+screenshots
+.claude
