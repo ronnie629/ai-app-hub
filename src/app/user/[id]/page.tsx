@@ -3,6 +3,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { formatPoints, formatDate, timeAgo, CATEGORIES } from "@/lib/constants";
 import { AppCard } from "@/components/app-card";
+import { getSession } from "@/lib/auth";
+
+function maskEmail(email: string): string {
+  if (!email || !email.includes("@")) return "***";
+  const [local, domain] = email.split("@");
+  if (local.length <= 1) return `${local}***@${domain}`;
+  if (local.length <= 3) return `${local[0]}***@${domain}`;
+  return `${local.slice(0, 2)}***@${domain}`;
+}
 
 export default async function UserProfilePage({
   params,
@@ -10,6 +19,12 @@ export default async function UserProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  const session = await getSession();
+  const isSelf = session?.id === id;
+  const isAdmin = session?.role === "ADMIN";
+  // 仅本人 + 管理员 可看邮箱原文 + 收入金额
+  const canViewSensitive = isSelf || isAdmin;
 
   const user = await prisma.user.findUnique({
     where: { id },
@@ -92,6 +107,8 @@ export default async function UserProfilePage({
   }
 
   const isDev = user.isDeveloper || user.role === "DEVELOPER" || apps.length > 0;
+  const displayEmail = canViewSensitive ? user.email : maskEmail(user.email);
+  const hiddenLabel = "🔒 仅本人 / 管理员可见";
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
@@ -125,9 +142,22 @@ export default async function UserProfilePage({
               <p className="mt-2 text-sm text-gray-600">{user.bio}</p>
             )}
 
-            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-400">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
               {user.profession && <span>职业：{user.profession}</span>}
               {user.workYears != null && <span>工作年限：{user.workYears} 年</span>}
+              <span>
+                邮箱：
+                {canViewSensitive ? (
+                  <a href={`mailto:${user.email}`} className="text-indigo-600 hover:underline ml-1">
+                    {displayEmail}
+                  </a>
+                ) : (
+                  <span className="ml-1 inline-flex items-center gap-1" title={hiddenLabel}>
+                    {displayEmail}
+                    <span className="text-gray-300">🔒</span>
+                  </span>
+                )}
+              </span>
               <span>注册于 {formatDate(user.createdAt)}</span>
               {user.lastLoginAt && <span>最近活跃 {timeAgo(user.lastLoginAt)}</span>}
             </div>
@@ -145,7 +175,13 @@ export default async function UserProfilePage({
           <>
             <div className="rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 p-5 text-white">
               <p className="text-green-100 text-sm">累计收入</p>
-              <p className="text-2xl font-bold mt-1">⚡ {formatPoints(earningAgg._sum.developerEarning || 0)}</p>
+              {canViewSensitive ? (
+                <p className="text-2xl font-bold mt-1">⚡ {formatPoints(earningAgg._sum.developerEarning || 0)}</p>
+              ) : (
+                <p className="text-2xl font-bold mt-1 flex items-center gap-1.5" title={hiddenLabel}>
+                  🔒 <span className="text-base font-medium text-green-50/80">隐藏</span>
+                </p>
+              )}
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <p className="text-gray-400 text-sm">发布应用</p>
@@ -153,7 +189,13 @@ export default async function UserProfilePage({
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <p className="text-gray-400 text-sm">总销售次数</p>
-              <p className="text-2xl font-bold mt-1">{earningAgg._count}</p>
+              {canViewSensitive ? (
+                <p className="text-2xl font-bold mt-1">{earningAgg._count}</p>
+              ) : (
+                <p className="text-2xl font-bold mt-1 flex items-center gap-1.5" title={hiddenLabel}>
+                  🔒 <span className="text-base font-medium text-gray-400">隐藏</span>
+                </p>
+              )}
             </div>
           </>
         ) : (
@@ -169,6 +211,13 @@ export default async function UserProfilePage({
           </>
         )}
       </div>
+
+      {/* 隐私提示 */}
+      {!canViewSensitive && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 mb-6 text-xs text-amber-700">
+          🔒 部分敏感信息（邮箱、收入金额）已隐藏。如需查看完整数据，请登录后访问自己的主页，或联系平台管理员。
+        </div>
+      )}
 
       {/* Developer apps */}
       {isDev && apps.length > 0 && (

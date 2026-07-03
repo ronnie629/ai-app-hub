@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { formatPoints, formatDate } from "@/lib/constants";
+import { RevenueTrendChart, MonthlyPoint } from "@/components/revenue-trend-chart";
 
 interface RevenueRecord {
   id: string;
@@ -30,6 +31,7 @@ interface Summary {
 export function AdminRevenueList() {
   const [records, setRecords] = useState<RevenueRecord[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -46,6 +48,7 @@ export function AdminRevenueList() {
         setRecords(data.records);
         setSummary(data.summary);
         setTotalPages(data.totalPages);
+        setMonthlyTrend(data.monthlyTrend || []);
       }
     } catch {
       // ignore
@@ -63,8 +66,17 @@ export function AdminRevenueList() {
     fetchData(1, search);
   };
 
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    window.open(`/api/admin/revenue/export?${params.toString()}`, "_blank");
+  };
+
   return (
     <div className="space-y-6">
+      {/* 趋势图 */}
+      <RevenueTrendChart data={monthlyTrend} />
+
       {/* Summary cards */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -87,7 +99,7 @@ export function AdminRevenueList() {
         </div>
       )}
 
-      {/* Search */}
+      {/* Search + Export */}
       <div className="flex items-center gap-3">
         <input
           type="text"
@@ -102,6 +114,12 @@ export function AdminRevenueList() {
           className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
         >
           搜索
+        </button>
+        <button
+          onClick={handleExport}
+          className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
+        >
+          <span>⬇</span> 导出 CSV
         </button>
       </div>
 
@@ -136,19 +154,19 @@ export function AdminRevenueList() {
                   <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
                     {/* 应用名称 */}
                     <td className="px-4 py-3">
-                      <Link href={`/app/${r.appId}`} className="text-sm font-medium text-indigo-600 hover:underline">
+                      <Link href={`/app/${r.appId}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:underline">
                         {r.appTitle}
                       </Link>
                     </td>
                     {/* 开发者 */}
                     <td className="px-4 py-3">
-                      <Link href={`/user/${r.developerId}`} className="text-sm text-gray-700 hover:text-indigo-600 hover:underline">
+                      <Link href={`/user/${r.developerId}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-indigo-600 hover:underline">
                         {r.developerName}
                       </Link>
                     </td>
                     {/* 购买者 */}
                     <td className="px-4 py-3">
-                      <Link href={`/user/${r.buyerId}`} className="text-sm text-gray-700 hover:text-indigo-600 hover:underline">
+                      <Link href={`/user/${r.buyerId}`} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-indigo-600 hover:underline">
                         {r.buyerName}
                       </Link>
                     </td>

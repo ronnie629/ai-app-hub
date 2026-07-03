@@ -72,6 +72,16 @@ export async function GET(req: Request) {
       createdAt: p.createdAt.toISOString(),
     }));
 
+    // 拿最近 12 个月所有成交（仅必要字段），用于趋势图
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+    twelveMonthsAgo.setHours(0, 0, 0, 0);
+    const trendPurchases = await prisma.purchase.findMany({
+      where: { createdAt: { gte: twelveMonthsAgo } },
+      select: { createdAt: true, pointsCost: true, platformEarning: true, developerEarning: true },
+    });
+
     return NextResponse.json({
       records,
       total,
@@ -84,9 +94,31 @@ export async function GET(req: Request) {
         totalDevEarning: agg._sum.developerEarning || 0,
         totalTransactions: agg._count,
       },
+      monthlyTrend: buildMonthlyTrend(trendPurchases),
     });
   } catch (error) {
     console.error("Admin revenue error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+}
+
+// 按月聚合最近 12 个月数据
+async function buildMonthlyTrend(purchases: { createdAt: Date; pointsCost: number; platformEarning: number; developerEarning: number }[]) {
+  const buckets: Record<string, { month: string; platformEarning: number; totalPoints: number; devEarning: number; count: number }> = {};
+  const now = new Date();
+  // 预生成最近 12 个月的 key
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    buckets[key] = { month: key, platformEarning: 0, totalPoints: 0, devEarning: 0, count: 0 };
+  }
+  for (const p of purchases) {
+    const key = `${p.createdAt.getFullYear()}-${String(p.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    if (!buckets[key]) continue;
+    buckets[key].platformEarning += p.platformEarning || 0;
+    buckets[key].totalPoints += p.pointsCost || 0;
+    buckets[key].devEarning += p.developerEarning || 0;
+    buckets[key].count += 1;
+  }
+  return Object.values(buckets);
 }
