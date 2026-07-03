@@ -1,4 +1,33 @@
 {
-  "version": "2.0",
-  "envId": "{{envId}}"
+  "envId": "aihub-d8gug4tk0771f44b9",
+  "framework": {
+    "name": "aihub",
+    "plugins": {
+      "aihub": {
+        "use": "@cloudbase/framework-plugin-container",
+        "inputs": {
+          "serviceName": "aihub",
+          "servicePath": "/",
+          "localPath": "./",
+          "uploadType": "package",
+          "containerPort": 3000,
+          "dockerfilePath": "./Dockerfile",
+          "cpu": 0.5,
+          "mem": 1,
+          "minNum": 0,
+          "maxNum": 2,
+          "mode": "low-cost",
+          "envVariables": {
+            "DATABASE_URL": "{{env.DATABASE_URL}}",
+            "DIRECT_URL": "{{env.DIRECT_URL}}",
+            "AUTH_SECRET": "{{env.AUTH_SECRET}}",
+            "NEXT_PUBLIC_SUPABASE_URL": "{{env.NEXT_PUBLIC_SUPABASE_URL}}",
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY": "{{env.NEXT_PUBLIC_SUPABASE_ANON_KEY}}",
+            "SUPABASE_SERVICE_ROLE_KEY": "{{env.SUPABASE_SERVICE_ROLE_KEY}}",
+            "HUNYUAN_API_KEY": "{{env.HUNYUAN_API_KEY}}"
+          }
+        }
+      }
+    }
+  }
 }
