@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setSession } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
-import * as bcrypt from "bcryptjs";
+import * as bcrypt from "bcrypt";
 
 export async function POST(req: Request) {
   try {
     // Rate limit check
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const rawIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    // x-forwarded-for 可能包含多个 IP（多层代理），取第一个
+    const ip = rawIp === "unknown" ? rawIp : rawIp.split(",")[0].trim();
     const { allowed } = rateLimit(ip);
     if (!allowed) {
       return NextResponse.json({ error: "请求过于频繁，请稍后再试" }, { status: 429 });

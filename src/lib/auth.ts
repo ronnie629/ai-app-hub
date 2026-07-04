@@ -43,9 +43,18 @@ export async function getSession(): Promise<SessionUser | null> {
   const session = await decrypt(token);
   if (!session) return null;
 
-  // Validate tokenVersion — if user changed password, old tokens are invalid
-  const user = await prisma.user.findUnique({ where: { id: session.id }, select: { tokenVersion: true } });
-  if (!user || user.tokenVersion !== session.tokenVersion) {
+  // Validate tokenVersion — if user changed password, old tokens are invalid.
+  // 如果数据库不可用，不回退到 JWT 数据（不做降级），避免安全风险。
+  // 而是直接返回 null，让调用方处理未认证状态。
+  try {
+    const user = await prisma.user.findUnique({ where: { id: session.id }, select: { tokenVersion: true } });
+    if (!user || user.tokenVersion !== session.tokenVersion) {
+      return null;
+    }
+  } catch (dbError) {
+    // 数据库不可用时（比如表不存在），无法验证 tokenVersion
+    // 保守策略：拒绝本次 session，前端会显示未登录状态，提示用户刷新
+    console.error("getSession: DB query failed, session rejected:", String(dbError));
     return null;
   }
 
@@ -55,9 +64,11 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function setSession(user: SessionUser) {
   const token = await encrypt(user);
   const cookieStore = await cookies();
+  // secure cookie 仅在 HTTPS 环境下启用，HTTP 环境下设置会导致浏览器拒绝 cookie。
+  // 部署时如需启用 secure，请在 .env 中设置 FORCE_SECURE_COOKIE=true
   cookieStore.set("session", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.FORCE_SECURE_COOKIE === "true",
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",

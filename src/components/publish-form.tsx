@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ImageUploader, UploadedImage } from "@/components/image-uploader";
-import { BUCKETS } from "@/lib/storage";
+import { BUCKETS } from "@/lib/storage-types";
 import { CATEGORIES, APP_TYPES, formatPoints } from "@/lib/constants";
 
 interface PublishFormProps {
@@ -243,7 +243,7 @@ export function PublishForm({
         category: form.category,
         appType: form.appType,
         coverImage: form.coverImage?.url || "",
-        screenshots: form.screenshots,
+        screenshots: form.screenshots.map((img) => img.url),
         price: form.price,
         pricePerUse: form.pricePerUse,
         accessUrl: form.accessUrl,
@@ -441,7 +441,7 @@ export function PublishForm({
           )}
 
           {/* 封面图 */}
-          <Field label="封面图" required hint="建议 800×800 或 16:9，应用商店和详情页都将使用这张图">
+          <Field label="封面图" required hint="上传后自动裁剪为 16:9，建议将主要内容放在图片中央。支持 jpg/png/webp/gif，≤5MB">
             <ImageUploader
               label=""
               value={form.coverImage ? [form.coverImage] : []}
@@ -453,7 +453,7 @@ export function PublishForm({
           </Field>
 
           {/* 应用截图 */}
-          <Field label="应用截图" hint="展示你的应用界面、功能亮点，可拖拽排序（最多 6 张）">
+          <Field label="应用截图" hint="上传后自动压缩优化，可拖拽排序。展示你的应用界面、功能亮点（最多 6 张）">
             <ImageUploader
               label=""
               value={form.screenshots}

@@ -52,3 +52,18 @@ next-env.d.ts
 screenshots/
 scripts/
 *.zip
+
+# deploy archives
+*.tar.gz
+
+# prisma
+prisma/dev.db
+prisma/schema.*.bak
+prisma/schema.local.prisma
+prisma/schema.mysql.prisma
+
+# uploads
+uploads/
+
+# system files
+.DS_Store

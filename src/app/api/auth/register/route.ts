@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setSession } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
-import * as bcrypt from "bcryptjs";
+import * as bcrypt from "bcrypt";
 
 const WELCOME_POINTS = 100;
 
 export async function POST(req: Request) {
   try {
     // Rate limit check
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const rawIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const ip = rawIp === "unknown" ? rawIp : rawIp.split(",")[0].trim();
     const { allowed } = rateLimit(ip);
     if (!allowed) {
       return NextResponse.json({ error: "请求过于频繁，请稍后再试" }, { status: 429 });
@@ -73,31 +74,35 @@ export async function POST(req: Request) {
       finalRole = "DEVELOPER";
     }
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        passwordHash,
-        phone,
-        role: finalRole,
-        points: WELCOME_POINTS,
-        isDeveloper: finalRole === "DEVELOPER",
-        profession: profession || null,
-        interests: interests || null,
-        workYears: workYears ? Number(workYears) : null,
-        appDomains: appDomains || null,
-      },
-    });
+    // 使用交互式事务确保用户创建和欢迎积分记录的原子性
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name,
+          email,
+          passwordHash,
+          phone,
+          role: finalRole,
+          points: WELCOME_POINTS,
+          isDeveloper: finalRole === "DEVELOPER",
+          profession: profession || null,
+          interests: Array.isArray(interests) ? JSON.stringify(interests) : (interests || null),
+          workYears: workYears ? Number(workYears) : null,
+          appDomains: Array.isArray(appDomains) ? JSON.stringify(appDomains) : (appDomains || null),
+        },
+      });
 
-    // Record welcome points transaction
-    await prisma.pointsTransaction.create({
-      data: {
-        userId: user.id,
-        type: "RECHARGE",
-        amount: WELCOME_POINTS,
-        balanceAfter: WELCOME_POINTS,
-        description: "新用户注册赠送",
-      },
+      await tx.pointsTransaction.create({
+        data: {
+          userId: newUser.id,
+          type: "RECHARGE",
+          amount: WELCOME_POINTS,
+          balanceAfter: WELCOME_POINTS,
+          description: "新用户注册赠送",
+        },
+      });
+
+      return newUser;
     });
 
     await setSession({

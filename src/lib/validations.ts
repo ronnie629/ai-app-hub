@@ -5,8 +5,8 @@ export const createAppSchema = z.object({
   title: z.string().min(2, "应用名称至少2个字符").max(100, "应用名称最多100个字符"),
   description: z.string().min(10, "描述至少10个字符").max(2000, "描述最多2000个字符"),
   category: z.string().min(1, "请选择分类"),
-  appType: z.enum(["WEB", "API", "DESKTOP", "MOBILE"], {
-    errorMap: () => ({ message: "请选择有效的应用类型" }),
+  appType: z.enum(["WEB", "API", "PLUGIN", "MINIPROGRAM", "BOT", "OTHER"], {
+    message: "请选择有效的应用类型",
   }),
   coverImage: z.string().url("封面图必须是有效的URL").optional().or(z.literal("")),
   screenshots: z.array(z.string().url()).optional(),

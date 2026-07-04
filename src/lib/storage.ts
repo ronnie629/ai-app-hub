@@ -1,90 +1,129 @@
-import { getSupabaseServer } from "./supabase";
+"server only";
+
+import fs from "fs/promises";
+import path from "path";
+import sharp from "sharp";
+import { BucketType, BUCKETS } from "./storage-types";
 
 /**
- * Storage 工具函数
- * 集中管理 app-covers 和 app-screenshots 两个公开 bucket
+ * 本地文件系统存储（仅服务端）
+ * 图片保存在项目根目录/uploads/{bucket}/{userId}/ 下
+ *
+ * 图片标准化策略：
+ * - 封面图：统一裁剪为 16:9 (800×450)，中心裁切，输出 WebP
+ * - 截图：限制最大宽度 1200px，保持原始比例，输出 WebP
+ * - GIF 动图：保持原样不处理
+ * 这样无论用户上传什么尺寸/比例的图片，平台展示都能保持一致美观
  */
 
-export const BUCKETS = {
-  COVERS: "app-covers",
-  SCREENSHOTS: "app-screenshots",
-} as const;
+export { BUCKETS };
+export type { BucketType };
 
-export type BucketType = (typeof BUCKETS)[keyof typeof BUCKETS];
+// UPLOAD_DIR 可在 .env 里指定绝对路径（生产环境推荐），开发环境默认用 cwd/uploads
+const UPLOAD_BASE = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+
+// 封面图标准尺寸 (16:9)
+const COVER_WIDTH = 800;
+const COVER_HEIGHT = 450;
+
+// 截图最大宽度
+const SCREENSHOT_MAX_WIDTH = 1200;
+
+async function ensureDir(dir: string) {
+  await fs.mkdir(dir, { recursive: true });
+}
 
 /**
- * 上传图片到指定 bucket
- * @param file - File 对象
- * @param bucket - bucket 名
- * @param userId - 操作用户 ID（用于隔离文件路径）
- * @returns 公开访问 URL
+ * 处理封面图：裁剪为 16:9，输出 WebP
+ */
+async function processCoverImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(COVER_WIDTH, COVER_HEIGHT, {
+      fit: "cover",
+      position: "center",      // 中心裁切，用户无需关心构图
+    })
+    .webp({ quality: 85 })
+    .toBuffer();
+}
+
+/**
+ * 处理截图：限制最大宽度，保持原始比例，输出 WebP
+ */
+async function processScreenshot(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(SCREENSHOT_MAX_WIDTH, undefined, {
+      fit: "inside",
+      withoutEnlargement: true, // 不放大小图
+    })
+    .webp({ quality: 85 })
+    .toBuffer();
+}
+
+/**
+ * 上传图片到本地文件系统，上传后自动标准化处理
  */
 export async function uploadImage(
   file: File,
   bucket: BucketType,
   userId: string
 ): Promise<{ url: string; path: string } | { error: string }> {
-  const supabase = getSupabaseServer();
-  if (!supabase) {
-    return { error: "Supabase 未配置，请在 .env 填入 NEXT_PUBLIC_SUPABASE_ANON_KEY 和 SUPABASE_SERVICE_ROLE_KEY" };
-  }
-
-  // 校验文件类型
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   if (!allowedTypes.includes(file.type)) {
     return { error: `不支持的文件类型: ${file.type}，仅支持 jpg/png/webp/gif` };
   }
 
-  // 校验文件大小（封面 ≤ 5MB，截图 ≤ 8MB）
   const maxSize = bucket === BUCKETS.COVERS ? 5 * 1024 * 1024 : 8 * 1024 * 1024;
   if (file.size > maxSize) {
     return { error: `文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），最大 ${maxSize / 1024 / 1024}MB` };
   }
 
-  // 生成唯一文件名：userId/timestamp-random.ext
-  const ext = file.name.split(".").pop() || "png";
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 8);
-  const fileName = `${userId}/${timestamp}-${random}.${ext}`;
-
-  // 转 ArrayBuffer 避免流问题
   const arrayBuffer = await file.arrayBuffer();
-  const { data, error } = await supabase.storage.from(bucket).upload(fileName, arrayBuffer, {
-    contentType: file.type,
-    cacheControl: "3600",
-    upsert: false,
-  });
+  const rawBuffer = Buffer.from(arrayBuffer);
 
-  if (error) {
-    return { error: `上传失败: ${error.message}` };
+  const dir = path.join(UPLOAD_BASE, bucket, userId);
+  await ensureDir(dir);
+
+  let finalBuffer: Buffer;
+  let ext: string;
+
+  // GIF 动图不处理，保持原样
+  if (file.type === "image/gif") {
+    finalBuffer = rawBuffer;
+    ext = "gif";
+  } else if (bucket === BUCKETS.COVERS) {
+    // 封面图：裁剪为 16:9 WebP
+    finalBuffer = await processCoverImage(rawBuffer);
+    ext = "webp";
+  } else {
+    // 截图：限制最大宽度 WebP
+    finalBuffer = await processScreenshot(rawBuffer);
+    ext = "webp";
   }
 
-  // 拿到公开 URL
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+  const fileName = `${timestamp}-${random}.${ext}`;
+  const storagePath = `${bucket}/${userId}/${fileName}`;
+  const filePath = path.join(UPLOAD_BASE, storagePath);
 
-  return { url: urlData.publicUrl, path: data.path };
+  await fs.writeFile(filePath, finalBuffer);
+
+  return { url: `/uploads/${storagePath}`, path: storagePath };
 }
 
 /**
- * 删除文件
+ * 删除本地文件
  */
-export async function deleteImage(bucket: BucketType, path: string): Promise<{ error?: string }> {
-  const supabase = getSupabaseServer();
-  if (!supabase) return { error: "Supabase 未配置" };
-
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  if (error) return { error: `删除失败: ${error.message}` };
-  return {};
-}
-
-/**
- * 从公开 URL 中提取 storage 路径
- * 公开 URL 格式：https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
- */
-export function extractPathFromUrl(url: string, bucket: BucketType): string | null {
-  if (!url) return null;
-  const marker = `/storage/v1/object/public/${bucket}/`;
-  const idx = url.indexOf(marker);
-  if (idx === -1) return null;
-  return url.substring(idx + marker.length);
+export async function deleteImage(bucket: BucketType, storagePath: string): Promise<{ error?: string }> {
+  const filePath = path.join(UPLOAD_BASE, bucket, storagePath);
+  try {
+    await fs.unlink(filePath);
+    return {};
+  } catch (err: unknown) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") {
+      return {};
+    }
+    return { error: `删除失败: ${e.message}` };
+  }
 }

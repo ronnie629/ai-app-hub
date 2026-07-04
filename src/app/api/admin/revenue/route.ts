@@ -94,7 +94,7 @@ export async function GET(req: Request) {
         totalDevEarning: agg._sum.developerEarning || 0,
         totalTransactions: agg._count,
       },
-      monthlyTrend: buildMonthlyTrend(trendPurchases),
+      monthlyTrend: await buildMonthlyTrend(trendPurchases),
     });
   } catch (error) {
     console.error("Admin revenue error:", error);

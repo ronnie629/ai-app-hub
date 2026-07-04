@@ -3,34 +3,35 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  phone        String    @default("")
-  role         String    @default("USER")
-  points       Int       @default(0)
-  tokenVersion Int       @default(0) // Incremented on password change to invalidate old sessions
-  bio          String?
-  avatar       String?
-  isDeveloper  Boolean   @default(false)
-  profession   String?
-  interests    String?
-  workYears    Int?
-  appDomains   String?
-  lastLoginAt  DateTime?
-  lastPurchaseAt DateTime? // 最后一次消费时间，用于90天降级判定
-  lastLevelCheckAt DateTime? // 等级最近一次重算时间
-  devLevelSnapshot     Int      @default(1) // 降级保护：开发者当月保级分润用
-  devLevelSnapshotMonth String? // "YYYY-MM"，保护期月份
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String
+  passwordHash         String
+  phone                String    @default("")
+  role                 String    @default("USER")
+  points               Int       @default(0)
+  tokenVersion         Int       @default(0)
+  bio                  String?   @db.Text
+  avatar               String?   @db.Text
+  isDeveloper          Boolean   @default(false)
+  profession           String?
+  interests            String?   @db.Text
+  workYears            Int?
+  appDomains           String?   @db.Text
+  lastLoginAt          DateTime?
+  lastPurchaseAt       DateTime?
+  lastLevelCheckAt     DateTime?
+  devLevelSnapshot     Int       @default(1)
+  devLevelSnapshotMonth String?
+  resetToken           String?   @unique
+  resetTokenExp        DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   apps         App[]
   purchases    Purchase[]
@@ -41,36 +42,36 @@ model User {
 }
 
 model App {
-  id                String         @id @default(cuid())
-  title             String
-  description       String
-  category          String         @default("其他")
-  appType           String         @default("WEB")
-  coverImage        String?
-  screenshots       String         @default("[]")
-  price             Int            @default(0)
-  pricePerUse       Int            @default(-1) // -1=未开启按次, 0=按次免费, >0=按次价格
-  usageInstructions String         @default("")
-  accessUrl         String         @default("")
-  tags              String         @default("[]")
-  developerId       String
-  status            String         @default("PENDING")
-  downloadCount     Int            @default(0)
-  rating            Float          @default(0)
-  reviewCount       Int            @default(0)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  title              String
+  description        String         @db.Text
+  category           String         @default("其他")
+  appType            String         @default("WEB")
+  coverImage         String?        @db.Text
+  screenshots        String         @default("[]") @db.VarChar(5000)
+  price              Int            @default(0)
+  pricePerUse        Int            @default(-1)
+  usageInstructions  String         @default("") @db.VarChar(5000)
+  accessUrl          String         @default("") @db.VarChar(2048)
+  tags               String         @default("[]") @db.VarChar(2000)
+  developerId        String
+  status             String         @default("PENDING")
+  downloadCount      Int            @default(0)
+  rating             Float          @default(0)
+  reviewCount        Int            @default(0)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
-  developer         User           @relation(fields: [developerId], references: [id])
-  purchases         Purchase[]
-  reviews           Review[]
+  developer          User           @relation(fields: [developerId], references: [id])
+  purchases          Purchase[]
+  reviews            Review[]
 
-  @@index([status, createdAt]) // 市场页查询：按状态+时间
-  @@index([status, downloadCount]) // 市场页查询：按状态+下载量排序
-  @@index([status, rating]) // 市场页查询：按状态+评分排序
-  @@index([developerId, status]) // 我的应用：按开发者+状态
-  @@index([category, status]) // 分类筛选
-  @@index([appType, status]) // 类型筛选
+  @@index([status, createdAt])
+  @@index([status, downloadCount])
+  @@index([status, rating])
+  @@index([developerId, status])
+  @@index([category, status])
+  @@index([appType, status])
   @@map("apps")
 }
 
@@ -79,20 +80,20 @@ model Purchase {
   userId           String
   appId            String
   pointsCost       Int
-  purchaseType     String   @default("BUYOUT") // BUYOUT | PER_USE
-  remainingUses    Int      @default(0) // 买断为0，按次购买为剩余次数
+  purchaseType     String   @default("BUYOUT")
+  remainingUses    Int      @default(0)
   developerEarning Int      @default(0)
   platformEarning  Int      @default(0)
-  platformFeeRate  Float    @default(0.1) // 购买时的平台抽佣比例快照
+  platformFeeRate  Float    @default(0.1)
   status           String   @default("COMPLETED")
   createdAt        DateTime @default(now())
 
   user             User     @relation(fields: [userId], references: [id])
   app              App      @relation(fields: [appId], references: [id])
 
-  @@index([userId, createdAt]) // 用户购买记录：按用户+时间
-  @@index([appId, createdAt]) // 应用销售记录：按应用+时间
-  @@index([status, createdAt]) // 订单查询：按状态+时间
+  @@index([userId, createdAt])
+  @@index([appId, createdAt])
+  @@index([status, createdAt])
   @@map("purchases")
 }
 
@@ -102,7 +103,7 @@ model PointsTransaction {
   type         String
   amount       Int
   balanceAfter Int
-  description  String   @default("")
+  description  String   @default("") @db.VarChar(5000)
   relatedId    String?
   createdAt    DateTime @default(now())
 
@@ -116,9 +117,9 @@ model Review {
   userId    String
   appId     String
   rating    Int
-  comment   String   @default("")
-  tags      String   @default("[]")
-  reply     String?
+  comment   String   @default("") @db.VarChar(5000)
+  tags      String   @default("[]") @db.VarChar(2000)
+  reply     String?  @db.Text
   repliedAt DateTime?
   createdAt DateTime @default(now())
 
@@ -131,9 +132,9 @@ model Review {
 }
 
 model PlatformConfig {
-  id                String  @id @default("default")
-  platformFeeRate   Float   @default(0.1)
-  minRechargePoints Int     @default(100)
+  id                String   @id @default("default")
+  platformFeeRate   Float    @default(0.1)
+  minRechargePoints Int      @default(100)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -156,8 +157,8 @@ model Notification {
   userId    String
   type      String
   title     String
-  content   String   @default("")
-  link      String?
+  content   String   @default("") @db.VarChar(5000)
+  link      String?  @db.Text
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -170,7 +171,7 @@ model AccessToken {
   userId    String
   appId     String
   token     String    @unique
-  status    String    @default("ACTIVE") // ACTIVE | USED | EXPIRED
+  status    String    @default("ACTIVE")
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
@@ -182,15 +183,15 @@ model AccessToken {
 
 model UserLevel {
   id             String   @id @default(cuid())
-  userType       String   // "USER" | "DEVELOPER"
-  level          Int      // 1=初级, 2=中级, 3=高级
-  name           String   // 等级名称
-  minConsumption Int      @default(0) // 用户：最低消费积分
-  minApps        Int      @default(0) // 开发者：最低发布应用数
-  minEarnings    Int      @default(0) // 开发者：最低赚取积分
-  devShareRate   Float    @default(0.9) // 开发者分润比例（如0.7=开发者得70%）
-  color          String   @default("#6366f1") // 等级颜色
-  icon           String   @default("") // 等级图标
+  userType       String
+  level          Int
+  name           String
+  minConsumption Int      @default(0)
+  minApps        Int      @default(0)
+  minEarnings    Int      @default(0)
+  devShareRate   Float    @default(0.9)
+  color          String   @default("#6366f1")
+  icon           String   @default("")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

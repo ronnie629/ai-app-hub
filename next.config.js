@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // CloudBase / 容器部署：使用 standalone 模式
-  // 输出 .next/standalone/ 目录，包含精简的 node_modules 和 server.js
+  // standalone 模式部署，输出 .next/standalone/
   output: "standalone",
   // Prisma engine 文件需要被追踪
   outputFileTracingIncludes: {
@@ -10,26 +9,18 @@ const nextConfig = {
   // 部署环境只装 production deps，devDeps 缺失
   // 关掉 build 时的 TypeScript / ESLint 检查
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true,  // 跳过 TS 类型检查，线上构建不阻塞
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // ESLint config moved to eslint.config.mjs (Next.js 16+)
   // 全局默认 dynamic 渲染：src/app/layout.tsx 里已加
   // export const dynamic = "force-dynamic"，避免 build 阶段预渲染触发 DB 查询
-  
-  // 图片优化配置：允许从 Supabase Storage 加载图片
+  // 图片均存于本地 /uploads/，无需配置 remotePatterns
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**.supabase.co",
-        port: "",
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
     formats: ["image/webp"],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30天缓存
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+  },
+  turbopack: {
+    root: __dirname,
   },
 };
 

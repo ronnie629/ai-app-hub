@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { formatPoints, formatDate, timeAgo, CATEGORIES, APP_TYPES } from "@/lib/constants";
 import { AppCard } from "@/components/app-card";
 
@@ -360,6 +361,7 @@ export function AppDetailClient({
                     src={allImages[activeScreenshot]}
                     alt={`${app.title} 预览 ${activeScreenshot + 1}`}
                     className="h-full w-full object-cover"
+                    loading="eager"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-8xl">
@@ -375,12 +377,12 @@ export function AppDetailClient({
                       key={idx}
                       type="button"
                       onClick={() => setActiveScreenshot(idx)}
-                      className={`flex-shrink-0 h-16 w-24 overflow-hidden rounded-lg border-2 transition-colors ${
+                      className={`flex-shrink-0 h-16 w-28 overflow-hidden rounded-lg border-2 transition-colors ${
                         activeScreenshot === idx ? "border-indigo-500" : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img} alt="" className="h-full w-full object-cover" />
+                      <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" />
                     </button>
                   ))}
                 </div>
@@ -470,13 +472,15 @@ export function AppDetailClient({
                 {app.screenshots.length > 1 && (
                   <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {app.screenshots.map((url, i) => (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        key={i}
-                        src={url}
-                        alt={`${app.title} 截图 ${i + 1}`}
-                        className="rounded-xl border border-gray-200"
-                      />
+                      <div key={i} className="aspect-video overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt={`${app.title} 截图 ${i + 1}`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
                     ))}
                   </div>
                 )}

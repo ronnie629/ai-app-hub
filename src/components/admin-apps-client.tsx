@@ -22,9 +22,10 @@ interface AdminAppData {
 interface AdminAppsClientProps {
   apps: AdminAppData[];
   initialStatus: string;
+  pagination?: { currentPage: number; totalPages: number; totalCount: number };
 }
 
-export function AdminAppsClient({ apps, initialStatus }: AdminAppsClientProps) {
+export function AdminAppsClient({ apps, initialStatus, pagination }: AdminAppsClientProps) {
   const router = useRouter();
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -157,6 +158,29 @@ export function AdminAppsClient({ apps, initialStatus }: AdminAppsClientProps) {
               </div>
             );
           })}
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <button
+                onClick={() => router.push(`/admin/apps?status=${initialStatus}&page=${pagination.currentPage - 1}`)}
+                disabled={pagination.currentPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+              <span className="text-sm text-gray-500 px-3">
+                {pagination.currentPage} / {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => router.push(`/admin/apps?status=${initialStatus}&page=${pagination.currentPage + 1}`)}
+                disabled={pagination.currentPage >= pagination.totalPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

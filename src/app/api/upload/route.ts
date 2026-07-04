@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { uploadImage, deleteImage, BUCKETS, BucketType, extractPathFromUrl } from "@/lib/storage";
+import { uploadImage, deleteImage, BUCKETS } from "@/lib/storage";
+import { BucketType, extractPathFromUrl } from "@/lib/storage-types";
 
 /**
  * POST /api/upload

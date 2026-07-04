@@ -30,10 +30,10 @@ export function Navbar() {
     }
   }, []);
 
-  // Only fetch on mount, not on every route change
+  // Fetch on mount and on pathname change (covers login→dashboard, logout→home, etc.)
   useEffect(() => {
     fetchUser();
-  }, [fetchUser]);
+  }, [fetchUser, pathname]);
 
   // Listen for custom auth events (login/logout/points change)
   useEffect(() => {

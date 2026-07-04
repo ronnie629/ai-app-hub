@@ -8,7 +8,8 @@ export async function middleware(request: NextRequest) {
   // 需要认证的页面路由
   const protectedRoutes = [
     "/dashboard",
-    "/app/publish",
+    "/publish",
+    "/admin",
     "/my-apps",
     "/favorites",
     "/profile",
@@ -18,6 +19,8 @@ export async function middleware(request: NextRequest) {
   const publicApiRoutes = [
     "/api/auth/login",
     "/api/auth/register",
+    "/api/auth/forgot",
+    "/api/auth/reset-password",
     "/api/apps",
     "/api/categories",
   ];
@@ -46,8 +49,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json({ error: "请先登录" }, { status: 401 });
   }
 
-  // 已登录用户访问登录/注册页，重定向到首页
-  if ((pathname === "/login" || pathname === "/register") && session) {
+  // 已登录用户访问登录/注册/忘记密码/重置密码页，重定向到首页
+  if (
+    (pathname === "/login" || pathname === "/register" ||
+     pathname === "/forgot-password" || pathname === "/reset-password") &&
+    session
+  ) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -57,12 +64,15 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/app/publish",
+    "/publish",
+    "/admin/:path*",
     "/my-apps/:path*",
     "/favorites/:path*",
     "/profile/:path*",
     "/login",
     "/register",
+    "/forgot-password",
+    "/reset-password",
     "/api/:path*",
   ],
 };

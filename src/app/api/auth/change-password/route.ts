@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
-import * as bcrypt from "bcryptjs";
+import { getSession, clearSession } from "@/lib/auth";
+import * as bcrypt from "bcrypt";
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -37,5 +37,8 @@ export async function POST(req: Request) {
     data: { passwordHash, tokenVersion: { increment: 1 } },
   });
 
-  return NextResponse.json({ ok: true });
+  // Clear current session cookie so user is forced to re-login
+  await clearSession();
+
+  return NextResponse.json({ ok: true, message: "密码已修改，请重新登录" });
 }

@@ -1,5 +1,6 @@
 // Simple in-memory rate limiter (per IP)
-// For production, consider using Redis-based rate limiting
+// 已知限制：内存存储，PM2 重启后限流状态丢失；多进程不共享；Serverless/冷启动失效。
+// 当前单 PM2 进程场景下可工作。如需健壮的限流，建议迁移到 Redis。
 
 const requests = new Map<string, { count: number; lastReset: number }>();
 

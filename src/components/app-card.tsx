@@ -29,7 +29,7 @@ export function AppCard({ app, compact = false }: AppCardProps) {
       <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden card-hover">
         {/* Cover image or gradient */}
         <div
-          className={`${compact ? "h-32" : "h-40"} relative overflow-hidden bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100`}
+          className="aspect-video relative overflow-hidden bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100"
         >
           {app.coverImage ? (
             <Image

@@ -3,33 +3,32 @@
 import { useState } from "react";
 import Link from "next/link";
 
-interface LoginFormProps {
-  redirect: string;
-}
-
-export function LoginForm({ redirect }: LoginFormProps) {
+export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetUrl, setResetUrl] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/forgot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email }),
       });
       const data = await res.json();
       if (res.ok) {
-        // 使用 window.location.href 做完整页面跳转，确保 httpOnly cookie 生效后
-        // Navbar 重新挂载时 /api/auth/me 能正确读取到 session
-        window.location.href = redirect;
+        setSuccess(data.message || "重置链接已发送");
+        if (data.resetUrl) {
+          setResetUrl(data.resetUrl);
+        }
       } else {
-        setError(data.error || "登录失败");
+        setError(data.error || "操作失败");
       }
     } catch {
       setError("网络错误，请重试");
@@ -41,7 +40,7 @@ export function LoginForm({ redirect }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">邮箱</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">注册邮箱</label>
         <input
           type="email"
           required
@@ -51,37 +50,37 @@ export function LoginForm({ redirect }: LoginFormProps) {
           className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
-        <input
-          type="password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-          className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        />
-      </div>
       {error && (
         <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</div>
+      )}
+      {success && (
+        <div className="rounded-lg bg-green-50 px-4 py-2.5 text-sm text-green-600">
+          {success}
+        </div>
+      )}
+      {resetUrl && (
+        <div className="rounded-lg bg-indigo-50 px-4 py-3 text-xs">
+          <p className="font-medium text-indigo-700 mb-1">开发环境 - 重置链接：</p>
+          <a
+            href={resetUrl}
+            className="text-indigo-600 break-all hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {resetUrl}
+          </a>
+        </div>
       )}
       <button
         type="submit"
         disabled={loading}
         className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {loading ? "登录中..." : "登录"}
+        {loading ? "发送中..." : "发送重置链接"}
       </button>
-      <div className="flex items-center justify-between text-sm">
-        <Link href="/forgot-password" className="text-indigo-600 hover:underline">
-          忘记密码？
-        </Link>
-      </div>
       <p className="text-center text-sm text-gray-400">
-        还没有账号？{" "}
-        <Link href="/register" className="text-indigo-600 hover:underline">
-          立即注册
+        <Link href="/login" className="text-indigo-600 hover:underline">
+          返回登录
         </Link>
       </p>
     </form>

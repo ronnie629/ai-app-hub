@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { safeJsonParse } from "@/lib/constants";
+import { safeJsonParse, APP_TYPES } from "@/lib/constants";
 
 /**
  * PATCH /api/apps/[id]
@@ -89,14 +89,17 @@ export async function PATCH(
           title: title.trim(),
           description: description.trim(),
           category: category || "其他",
-          appType: appType || "WEB",
+          appType: APP_TYPES.some((t) => t.key === (appType || "WEB")) ? (appType || "WEB") : "WEB",
           coverImage: coverImage ?? app.coverImage,
           screenshots: screenshotsJson,
           price: Math.max(0, parseInt(price) || 0),
-          pricePerUse: pricePerUse !== undefined ? parseInt(pricePerUse) ?? -1 : app.pricePerUse,
+          pricePerUse:
+            pricePerUse !== undefined
+              ? (() => { const p = parseInt(pricePerUse); return Number.isNaN(p) ? -1 : p; })()
+              : app.pricePerUse,
           usageInstructions: usageInstructions || "",
           accessUrl: accessUrl || "",
-          tags: JSON.stringify(tags || []),
+          tags: typeof tags === "string" ? tags : JSON.stringify(tags || []),
           status: "PENDING",
         },
       });

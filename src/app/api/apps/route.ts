@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { createAppSchema } from "@/lib/validations";
+import { APP_TYPES } from "@/lib/constants";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     // Zod 验证
     const validationResult = createAppSchema.safeParse(body);
     if (!validationResult.success) {
-      const errors = validationResult.error.errors.map((err) => ({
+      const errors = validationResult.error.issues.map((err) => ({
         field: err.path.join("."),
         message: err.message,
       }));
@@ -48,12 +49,15 @@ export async function POST(req: Request) {
       screenshotsJson = JSON.stringify(list);
     }
 
+    // 二次校验 appType 白名单（防止绕过 Zod 直接调 API）
+    const validAppType = APP_TYPES.some((t) => t.key === appType) ? appType : "WEB";
+
     const app = await prisma.app.create({
       data: {
         title,
         description,
         category: category || "其他",
-        appType: appType || "WEB",
+        appType: validAppType,
         coverImage: coverImage || null,
         price: Math.max(0, price || 0),
         pricePerUse: pricePerUse !== undefined ? pricePerUse : -1,
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
     // 处理 Zod 错误
     if (error instanceof Error && error.name === "ZodError") {
       return NextResponse.json(
-        { error: "输入验证失败", details: (error as any).errors },
+        { error: "输入验证失败", details: (error as any).issues },
         { status: 400 }
       );
     }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const PROFESSIONS = [
@@ -55,7 +54,6 @@ const APP_DOMAIN_OPTIONS = [
 ];
 
 export function RegisterForm() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [accountType, setAccountType] = useState<"USER" | "DEVELOPER">("USER");
   const [form, setForm] = useState({
@@ -109,8 +107,7 @@ export function RegisterForm() {
       });
       const data = await res.json();
       if (res.ok) {
-        router.push("/dashboard");
-        router.refresh();
+        window.location.href = "/dashboard";
       } else {
         setError(data.error || "注册失败");
       }
