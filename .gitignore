@@ -64,6 +64,7 @@ prisma/schema.mysql.prisma
 
 # uploads
 uploads/
+public/uploads/
 
 # system files
 .DS_Store

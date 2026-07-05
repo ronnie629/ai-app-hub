@@ -19,8 +19,9 @@ import { BucketType, BUCKETS } from "./storage-types";
 export { BUCKETS };
 export type { BucketType };
 
-// UPLOAD_DIR 可在 .env 里指定绝对路径（生产环境推荐），开发环境默认用 cwd/uploads
-const UPLOAD_BASE = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+// UPLOAD_DIR 可在 .env 里指定绝对路径（生产环境推荐），开发环境默认用 public/uploads
+// 放在 public 目录下才能被 Next.js 作为静态文件服务，否则图片 URL 返回 404
+const UPLOAD_BASE = process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
 
 // 封面图标准尺寸 (16:9)
 const COVER_WIDTH = 800;

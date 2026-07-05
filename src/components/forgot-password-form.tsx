@@ -74,7 +74,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+        className="w-full rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 active:scale-[0.98] transition-transform"
       >
         {loading ? "发送中..." : "发送重置链接"}
       </button>

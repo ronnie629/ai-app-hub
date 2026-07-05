@@ -25,22 +25,52 @@ function removePattern(dir, pattern) {
   }
 }
 
-// 1. Prisma 引擎：只保留 linux-musl 版本
+// 1. Prisma 引擎：根据当前 Linux 发行版保留正确的引擎
+//    Ubuntu/Debian → 保留 debian-openssl-3.0.x (glibc)
+//    Alpine → 保留 linux-musl (musl)
 const prismaClientDir = path.join(__dirname, "..", "node_modules", ".prisma", "client");
-removePattern(prismaClientDir, /^libquery_engine-(?!linux-musl).*\.(dylib|so)\.node$/);
-removePattern(prismaClientDir, /^libquery_engine-debian.*\.so\.node$/);
+// 检测当前是否使用 musl（Alpine 等）
+const isMusl = (() => {
+  try {
+    // ldd 如果存在且输出包含 musl，则为 musl 系统
+    const { execSync } = require("child_process");
+    const out = execSync("ldd --version 2>&1 || true", { encoding: "utf8" });
+    return out.includes("musl");
+  } catch { return false; }
+})();
 
-// 2. @prisma/engines 整个 39M：deploy 时 schema-engine 用不到
+const keepPattern = isMusl ? "linux-musl" : "debian";
+console.log(`[clean-deploy-deps] detected ${isMusl ? "musl" : "glibc"} libc, keeping "${keepPattern}" engine`);
+
+// 移除非当前平台需要的 Prisma 引擎
+const engineFiles = fs.readdirSync(prismaClientDir).filter(f => /^libquery_engine-/.test(f));
+for (const f of engineFiles) {
+  if (!f.includes(keepPattern)) {
+    const fp = path.join(prismaClientDir, f);
+    const stat = fs.statSync(fp);
+    fs.unlinkSync(fp);
+    totalSaved += stat.size;
+    console.log(`[clean-deploy-deps] removed ${fp.replace(__dirname + "/../", "")} (${(stat.size/1024/1024).toFixed(1)}M)`);
+  }
+}
+
+// 2. @prisma/engines：移除不需要的引擎文件
 const prismaEnginesDir = path.join(__dirname, "..", "node_modules", "@prisma", "engines");
 if (fs.existsSync(prismaEnginesDir)) {
+  const keepSuffix = isMusl ? "linux-musl" : "debian";
   for (const f of fs.readdirSync(prismaEnginesDir)) {
-    if (/^schema-engine-(?!linux-musl)/.test(f) || /libquery_engine/.test(f)) {
-      const fp = path.join(prismaEnginesDir, f);
-      const st = fs.statSync(fp);
-      if (st.isFile()) {
-        fs.unlinkSync(fp);
-        totalSaved += st.size;
-        console.log(`[clean-deploy-deps] removed @prisma/engines/${f} (${(st.size/1024/1024).toFixed(1)}M)`);
+    // 移除所有 schema-engine-xxx 除了当前平台需要的
+    const isSchemaEngine = /^schema-engine-/.test(f);
+    const isLibEngine = /libquery_engine/.test(f);
+    if (isSchemaEngine || isLibEngine) {
+      if (!f.includes(keepSuffix)) {
+        const fp = path.join(prismaEnginesDir, f);
+        const st = fs.statSync(fp);
+        if (st.isFile()) {
+          fs.unlinkSync(fp);
+          totalSaved += st.size;
+          console.log(`[clean-deploy-deps] removed @prisma/engines/${f} (${(st.size/1024/1024).toFixed(1)}M)`);
+        }
       }
     }
   }

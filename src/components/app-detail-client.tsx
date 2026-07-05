@@ -348,13 +348,13 @@ export function AppDetailClient({
   return (
     <div>
       {/* 全宽主视觉 */}
-      <div className="mb-8 -mx-4 sm:-mx-6 lg:-mx-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="mb-4 sm:mb-8 -mx-4 sm:-mx-6 lg:-mx-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 items-start">
             {/* 左侧：截图轮播 */}
             <div>
               {/* 大图 */}
-              <div className="aspect-video overflow-hidden rounded-2xl bg-white shadow-lg">
+              <div className="aspect-video overflow-hidden rounded-xl sm:rounded-2xl bg-white shadow-lg">
                 {allImages.length > 0 ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -364,20 +364,20 @@ export function AppDetailClient({
                     loading="eager"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-8xl">
+                  <div className="flex h-full w-full items-center justify-center text-6xl sm:text-8xl">
                     {category?.icon || "📦"}
                   </div>
                 )}
               </div>
               {/* 缩略图 */}
               {allImages.length > 1 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+                <div className="mt-2 sm:mt-3 flex gap-2 overflow-x-auto pb-1 sm:pb-2 scrollbar-hide">
                   {allImages.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveScreenshot(idx)}
-                      className={`flex-shrink-0 h-16 w-28 overflow-hidden rounded-lg border-2 transition-colors ${
+                      className={`flex-shrink-0 h-12 sm:h-16 w-20 sm:w-28 overflow-hidden rounded-lg border-2 transition-colors ${
                         activeScreenshot === idx ? "border-indigo-500" : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                     >
@@ -391,29 +391,29 @@ export function AppDetailClient({
 
             {/* 右侧：标题/描述/标签/统计 */}
             <div>
-              <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
+              <div className="flex flex-wrap items-center gap-1.5 mb-2 sm:mb-3">
+                <span className="rounded-full bg-indigo-100 px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium text-indigo-700">
                   {appType?.label || app.appType}
                 </span>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700">
+                <span className="rounded-full bg-white px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium text-gray-700">
                   {category?.icon} {category?.label || app.category}
                 </span>
                 {app.rating > 0 && (
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                  <span className="rounded-full bg-amber-100 px-2.5 sm:px-3 py-0.5 sm:py-1 text-xs font-medium text-amber-700">
                     ⭐ {app.rating.toFixed(1)}
                   </span>
                 )}
               </div>
 
-              <h1 className="text-3xl font-bold sm:text-4xl">{app.title}</h1>
-              <p className="mt-3 text-base text-gray-600">{app.description}</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">{app.title}</h1>
+              <p className="mt-2 sm:mt-3 text-sm sm:text-base text-gray-600 line-clamp-3 sm:line-clamp-none">{app.description}</p>
 
               {app.tags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1.5">
+                <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5">
                   {app.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-lg bg-white px-2.5 py-1 text-xs text-gray-600 shadow-sm"
+                      className="rounded-lg bg-white px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs text-gray-600 shadow-sm"
                     >
                       #{tag}
                     </span>
@@ -421,11 +421,13 @@ export function AppDetailClient({
                 </div>
               )}
 
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-500">
+              <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-4 text-xs sm:text-sm text-gray-500">
                 <span>开发者：<span className="font-medium text-gray-700">{app.developer.name}</span></span>
-                <span>· ⬇ {app.downloadCount} 次使用</span>
-                {app.reviewCount > 0 && <span>· 💬 {app.reviewCount} 条评价</span>}
-                <span>· 上架于 {formatDate(app.createdAt)}</span>
+                <span className="hidden sm:inline">·</span>
+                <span>⬇ {app.downloadCount} 次使用</span>
+                {app.reviewCount > 0 && <><span className="hidden sm:inline">·</span><span>💬 {app.reviewCount} 条评价</span></>}
+                <span className="hidden sm:inline">·</span>
+                <span className="w-full sm:w-auto">上架于 {formatDate(app.createdAt)}</span>
               </div>
             </div>
           </div>
@@ -433,23 +435,23 @@ export function AppDetailClient({
       </div>
 
       {/* 主体：左内容 + 右浮动卡 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-        {/* 左侧：内容区 */}
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 sm:gap-8">
+        {/* 左侧：内容区 (mobile: order-2, desktop: order-1) */}
+        <div className="order-2 lg:order-1">
           {/* Tabs */}
-          <div className="sticky top-0 z-10 -mx-4 bg-white/90 px-4 backdrop-blur sm:mx-0 sm:px-0">
+          <div className="sticky top-14 sm:top-16 z-10 -mx-4 bg-white/90 px-4 backdrop-blur sm:mx-0 sm:px-0">
             <div className="border-b border-gray-200">
-              <nav className="flex gap-6 overflow-x-auto">
+              <nav className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-hide">
                 {[
                   { key: "description", label: "应用介绍" },
                   { key: "instructions", label: "使用说明" },
-                  { key: "reviews", label: `用户评价 (${app.reviewCount})` },
+                  { key: "reviews", label: `评价 (${app.reviewCount})` },
                   { key: "changelog", label: "更新日志" },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key as any)}
-                    className={`whitespace-nowrap pb-3 pt-3 text-sm font-medium border-b-2 ${
+                    className={`whitespace-nowrap pb-2.5 sm:pb-3 pt-2.5 sm:pt-3 text-sm font-medium border-b-2 ${
                       activeTab === tab.key
                         ? "border-indigo-600 text-indigo-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
@@ -745,9 +747,9 @@ export function AppDetailClient({
           )}
         </div>
 
-        {/* 右侧：浮动购买卡 */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        {/* 右侧：浮动购买卡 (mobile: order-1 shown first, desktop: order-2 sticky) */}
+        <aside className="order-1 lg:order-2 lg:sticky lg:top-20 lg:self-start">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm">
             {/* 购买/使用按钮 */}
             <div className="mt-4 space-y-2">
               {purchaseStatus.purchased && purchaseStatus.canUse ? (
@@ -882,11 +884,11 @@ export function AppDetailClient({
       {/* 评价弹窗 */}
       {showReviewModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
           onClick={() => setShowReviewModal(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-white p-6"
+            className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white p-4 sm:p-6 max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-none"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold">写评价</h3>

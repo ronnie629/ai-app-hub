@@ -347,7 +347,7 @@ export function RegisterForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-[2] rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-[2] rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
               {loading ? "注册中..." : "完成注册"}
             </button>

@@ -65,19 +65,42 @@ export function ImageUploader({
       const newImages: UploadedImage[] = [];
       for (const file of fileArr) {
         try {
+          // 前端预检查：文件类型
+          const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+          if (!allowedTypes.includes(file.type)) {
+            setError(`不支持的文件类型: ${file.type || "未知"}，仅支持 jpg/png/webp/gif`);
+            break;
+          }
+          // 前端预检查：文件大小
+          const maxSize = (maxSizeMB || 5) * 1024 * 1024;
+          if (file.size > maxSize) {
+            setError(`文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），最大 ${maxSizeMB}MB`);
+            break;
+          }
+
           const fd = new FormData();
           fd.append("file", file);
           fd.append("bucket", bucket);
           const res = await fetch("/api/upload", { method: "POST", body: fd });
-          const data = await res.json();
-          if (res.ok) {
-            newImages.push({ url: data.url, path: data.path });
-          } else {
-            setError(data.error || "上传失败");
+
+          // 尝试解析 JSON 响应，处理非 JSON 响应（如 HTML 错误页）
+          let data: { url?: string; path?: string; error?: string } = {};
+          try {
+            data = await res.json();
+          } catch {
+            const text = await res.text().catch(() => "");
+            setError(`服务器返回异常 (${res.status}): ${text.slice(0, 100)}`);
             break;
           }
-        } catch {
-          setError("网络错误，上传失败");
+
+          if (res.ok) {
+            newImages.push({ url: data.url!, path: data.path! });
+          } else {
+            setError(data.error || `上传失败 (${res.status})`);
+            break;
+          }
+        } catch (err) {
+          setError(`网络错误，上传失败: ${err instanceof Error ? err.message : "请检查网络连接"}`);
           break;
         }
       }

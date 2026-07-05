@@ -14,19 +14,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "请先登录" }, { status: 401 });
   }
 
+  let formData: FormData;
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const bucket = (formData.get("bucket") as BucketType) || BUCKETS.COVERS;
-
-    if (!file) {
-      return NextResponse.json({ error: "未提供文件" }, { status: 400 });
+    formData = await req.formData();
+  } catch (err) {
+    console.error("Upload: formData parsing failed:", err);
+    const msg = (err as Error).message || "";
+    if (msg.includes("body") || msg.includes("size") || msg.includes("limit")) {
+      return NextResponse.json(
+        { error: "文件过大，请压缩后重试（封面 ≤5MB，截图 ≤8MB）" },
+        { status: 413 }
+      );
     }
+    return NextResponse.json(
+      { error: "文件解析失败，请重试" },
+      { status: 400 }
+    );
+  }
 
-    if (bucket !== BUCKETS.COVERS && bucket !== BUCKETS.SCREENSHOTS) {
-      return NextResponse.json({ error: "无效的 bucket" }, { status: 400 });
-    }
+  const file = formData.get("file") as File | null;
+  const bucket = (formData.get("bucket") as BucketType) || BUCKETS.COVERS;
 
+  if (!file) {
+    return NextResponse.json({ error: "未提供文件" }, { status: 400 });
+  }
+
+  if (!file.size || file.size === 0) {
+    return NextResponse.json({ error: "文件为空，请重新选择" }, { status: 400 });
+  }
+
+  if (bucket !== BUCKETS.COVERS && bucket !== BUCKETS.SCREENSHOTS) {
+    return NextResponse.json({ error: "无效的 bucket" }, { status: 400 });
+  }
+
+  try {
     const result = await uploadImage(file, bucket, session.id);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 400 });

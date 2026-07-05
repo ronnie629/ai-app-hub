@@ -108,12 +108,12 @@ export default async function AppDetailPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-5xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-sm text-gray-400">
-        <Link href="/market" className="hover:text-indigo-600">应用市场</Link>
+      <nav className="mb-4 sm:mb-6 flex items-center gap-2 text-xs sm:text-sm text-gray-400 overflow-x-auto scrollbar-hide">
+        <Link href="/market" className="hover:text-indigo-600 shrink-0">应用市场</Link>
         <span>/</span>
-        <span>{category?.label || app.category}</span>
+        <span className="shrink-0">{category?.label || app.category}</span>
         <span>/</span>
         <span className="text-gray-700 truncate">{app.title}</span>
       </nav>

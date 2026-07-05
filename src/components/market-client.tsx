@@ -80,20 +80,20 @@ export function MarketClient({
           </div>
           <button
             onClick={() => updateUrl(category, query, sort, 1)}
-            className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded-xl bg-indigo-600 px-4 sm:px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 shrink-0"
           >
             搜索
           </button>
         </div>
 
-        {/* Category filters */}
-        <div className="flex flex-wrap gap-2">
+        {/* Category filters - scrollable on mobile */}
+        <div className="flex flex-nowrap overflow-x-auto gap-2 pb-1 -mx-1 px-1 scrollbar-hide">
           <button
             onClick={() => {
               setCategory("");
               updateUrl("", query, sort, 1);
             }}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+            className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap ${
               !category
                 ? "bg-indigo-600 text-white"
                 : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -108,7 +108,7 @@ export function MarketClient({
                 setCategory(cat.key);
                 updateUrl(cat.key, query, sort, 1);
               }}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap ${
                 category === cat.key
                   ? "bg-indigo-600 text-white"
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -119,14 +119,14 @@ export function MarketClient({
           ))}
         </div>
 
-        {/* Sort */}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-400">排序：</span>
+        {/* Sort - scrollable on mobile */}
+        <div className="flex items-center gap-2 text-sm overflow-x-auto scrollbar-hide">
+          <span className="text-gray-400 shrink-0">排序：</span>
           {[
             { key: "popular", label: "最热门" },
             { key: "newest", label: "最新上架" },
-            { key: "price-low", label: "价格低→高" },
-            { key: "price-high", label: "价格高→低" },
+            { key: "price-low", label: "低价优先" },
+            { key: "price-high", label: "高价优先" },
           ].map((s) => (
             <button
               key={s.key}
@@ -134,7 +134,7 @@ export function MarketClient({
                 setSort(s.key);
                 updateUrl(category, query, s.key, 1);
               }}
-              className={`rounded-lg px-3 py-1 ${
+              className={`shrink-0 rounded-lg px-3 py-1 whitespace-nowrap ${
                 sort === s.key
                   ? "bg-indigo-50 text-indigo-600 font-medium"
                   : "text-gray-500 hover:bg-gray-100"

@@ -2,9 +2,12 @@
 const nextConfig = {
   // standalone 模式部署，输出 .next/standalone/
   output: "standalone",
-  // Prisma engine 文件需要被追踪
+  // Prisma engine + Sharp native 文件需要被追踪（standalone 模式不会自动包含 .node 二进制）
   outputFileTracingIncludes: {
-    "/*": ["./node_modules/.prisma/client/**/*"],
+    "/*": [
+      "./node_modules/.prisma/client/**/*",
+      "./node_modules/sharp/**/*",
+    ],
   },
   // 部署环境只装 production deps，devDeps 缺失
   // 关掉 build 时的 TypeScript / ESLint 检查
