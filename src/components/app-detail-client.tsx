@@ -235,24 +235,21 @@ export function AppDetailClient({
     }
     setAccessing(true);
     setMessage("");
-    // 先同步打开空白窗口，避免异步 fetch 后被浏览器拦截弹窗
-    const newWindow = window.open("about:blank", "_blank");
-    if (!newWindow) {
-      setMessage("弹窗被拦截，请允许本站弹窗后再试");
-      setAccessing(false);
-      return;
-    }
     try {
       const res = await fetch(`/api/apps/${app.id}/access`, { method: "POST" });
       const data = await res.json();
       if (res.ok && data.useUrl) {
-        newWindow.location.href = window.location.origin + data.useUrl;
+        const proxyUrl = window.location.origin + data.useUrl;
+        const newWindow = window.open("about:blank", "_blank");
+        if (!newWindow) {
+          setMessage("弹窗被拦截，请允许本站弹窗后再试");
+        } else {
+          newWindow.location.href = proxyUrl;
+        }
       } else {
-        newWindow.close();
         setMessage(data.error || "获取访问权限失败");
       }
     } catch {
-      newWindow.close();
       setMessage("网络错误，请重试");
     } finally {
       setAccessing(false);

@@ -118,6 +118,7 @@ export function PublishForm({
   const [submitting, setSubmitting] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [error, setError] = useState("");
+  const [errorDialog, setErrorDialog] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [draftRestored, setDraftRestored] = useState(false);
   const [tagsInput, setTagsInput] = useState(
@@ -181,14 +182,15 @@ export function PublishForm({
   );
 
   // 校验
-  const allValid = useMemo(() => {
-    const perUseValid = form.pricePerUse < 0 || form.pricePerUse >= 0; // 数字即可，开关关闭时 -1 也合法
-    return (
-      form.title.trim().length > 0 &&
-      form.description.trim().length >= 10 &&
-      form.price >= 0 &&
-      perUseValid
-    );
+  const { valid: allValid, msgs: invalidMsgs } = useMemo(() => {
+    const perUseValid = form.pricePerUse < 0 || form.pricePerUse >= 0;
+    const msgs: string[] = [];
+    if (form.title.trim().length === 0) msgs.push("• 应用名称不能为空");
+    if (form.description.trim().length < 10) msgs.push("• 应用描述至少 10 个字");
+    if (form.price < 0) msgs.push("• 请填写买断价格");
+    if (!perUseValid) msgs.push("• 请填写有效的按次计费价格");
+    if (form.accessUrl.trim().length === 0) msgs.push("• 应用地址不能为空");
+    return { valid: msgs.length === 0, msgs };
   }, [form]);
 
   // AI 一句话生成
@@ -231,11 +233,18 @@ export function PublishForm({
   // 提交
   const handleSubmit = async () => {
     if (!allValid) {
-      setError("请完成必填项：应用名称、应用描述");
+      setErrorDialog(`请完善以下必填项：\n\n${invalidMsgs.join("\n")}`);
       return;
     }
     setSubmitting(true);
     setError("");
+
+    // 自动补全 URL 协议
+    let accessUrl = form.accessUrl.trim();
+    if (accessUrl && !/^https?:\/\//i.test(accessUrl)) {
+      accessUrl = `https://${accessUrl}`;
+    }
+
     try {
       const payload = {
         title: form.title,
@@ -246,13 +255,12 @@ export function PublishForm({
         screenshots: form.screenshots.map((img) => img.url),
         price: form.price,
         pricePerUse: form.pricePerUse,
-        accessUrl: form.accessUrl,
+        accessUrl,
         usageInstructions: form.usageInstructions,
         tags: parsedTags,
       };
 
       if (isEdit) {
-        // 编辑走 PATCH
         const res = await fetch(`/api/apps/${initialData!.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -264,10 +272,12 @@ export function PublishForm({
           setSuccessMsg("更新成功，等待重新审核！跳转中...");
           setTimeout(() => router.push("/dashboard/apps"), 800);
         } else {
-          setError(data.error || "更新失败");
+          const detail = data.details?.length
+            ? data.details.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`).join("\n")
+            : data.error || "更新失败";
+          setErrorDialog(detail);
         }
       } else {
-        // 创建走 POST
         const res = await fetch("/api/apps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -279,11 +289,14 @@ export function PublishForm({
           setSuccessMsg("发布成功！跳转中...");
           setTimeout(() => router.push("/dashboard/apps"), 800);
         } else {
-          setError(data.error || "发布失败");
+          const detail = data.details?.length
+            ? data.details.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`).join("\n")
+            : data.error || "发布失败";
+          setErrorDialog(detail);
         }
       }
     } catch {
-      setError("网络错误");
+      setErrorDialog("网络错误，请检查网络连接后重试");
     } finally {
       setSubmitting(false);
     }
@@ -580,7 +593,7 @@ export function PublishForm({
           </Field>
 
           {/* 访问地址 */}
-          <Field label="访问地址" hint="购买后用户可访问，免费应用也可填写">
+          <Field label="应用地址" required hint="购买后用户可访问，免费应用也可填写">
             <input
               type="url"
               value={form.accessUrl}
@@ -626,6 +639,32 @@ export function PublishForm({
             : "提交后需等待管理员审核，审核通过后将在应用市场展示。"}
         </p>
       </div>
+
+      {/* 错误弹窗 */}
+      {errorDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-xl">
+                ⚠️
+              </span>
+              <h3 className="text-lg font-semibold text-gray-900">提交提示</h3>
+            </div>
+            <p className="whitespace-pre-line text-sm text-gray-600 leading-relaxed">
+              {errorDialog}
+            </p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setErrorDialog("")}
+                className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+              >
+                知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

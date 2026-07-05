@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, clearSession } from "@/lib/auth";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   const session = await getSession();

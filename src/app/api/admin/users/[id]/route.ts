@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 import type { User } from "@prisma/client";
 
 function serializeUser(user: User & { _count?: { apps: number; purchases: number } }) {

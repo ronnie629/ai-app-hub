@@ -147,6 +147,18 @@ export async function GET(
     setInterval(tick, 1000);
     // 禁止右键
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    // 屏蔽 F12 / Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U 等开发者工具快捷键
+    document.addEventListener('keydown', function(e) {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'U')
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    });
+    // 阻止通过地址栏执行 JS（通过 iframe sandbox 也已限制）
   })();
 </script>
 </body>

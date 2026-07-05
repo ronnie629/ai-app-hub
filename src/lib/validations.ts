@@ -8,8 +8,8 @@ export const createAppSchema = z.object({
   appType: z.enum(["WEB", "API", "PLUGIN", "MINIPROGRAM", "BOT", "OTHER"], {
     message: "请选择有效的应用类型",
   }),
-  coverImage: z.string().url("封面图必须是有效的URL").optional().or(z.literal("")),
-  screenshots: z.array(z.string().url()).optional(),
+  coverImage: z.string().regex(/^(https?:\/\/|\/)/, "封面图URL格式无效").optional().or(z.literal("")),
+  screenshots: z.array(z.string().regex(/^(https?:\/\/|\/)/, "截图URL格式无效")).optional(),
   price: z.number().min(0, "价格不能为负数").max(1000000, "价格不能超过1000000"),
   pricePerUse: z.number().min(-1).max(1000000).optional(),
   usageInstructions: z.string().max(5000).optional(),

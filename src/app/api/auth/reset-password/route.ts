@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
