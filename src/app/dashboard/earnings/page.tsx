@@ -8,14 +8,17 @@ export default async function DashboardEarningsPage() {
   const session = await getSession();
   if (!session) redirect("/login?redirect=/dashboard/earnings");
 
-  const purchases = await prisma.purchase.findMany({
-    where: { app: { developerId: session.id } },
-    include: { app: true },
+  const transactions = await prisma.pointsTransaction.findMany({
+    where: { userId: session.id, type: "EARNING" },
+    include: {
+      relatedPurchase: { include: { app: true } },
+      consumer: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 
-  const totalEarnings = purchases.reduce((sum, p) => sum + p.developerEarning, 0);
-  const totalSales = purchases.length;
+  const totalEarnings = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalSales = transactions.length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -39,24 +42,48 @@ export default async function DashboardEarningsPage() {
           {/* Records */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
             <h2 className="font-bold mb-4">交易明细</h2>
-            {purchases.length === 0 ? (
+            {transactions.length === 0 ? (
               <p className="text-gray-400 text-sm py-6 text-center">
                 还没有收入记录，快去发布应用吧！
               </p>
             ) : (
-              <div className="space-y-3">
-                {purchases.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">{p.app.title}</span>
-                      <span className="ml-2 text-xs text-gray-400">{formatDate(p.createdAt)}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-green-600">+{p.developerEarning} ⚡</div>
-                      <div className="text-xs text-gray-400">售价 {p.pointsCost}</div>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b border-gray-100">
+                      <th className="pb-3 font-medium">时间</th>
+                      <th className="pb-3 font-medium">应用名称</th>
+                      <th className="pb-3 font-medium">购买者</th>
+                      <th className="pb-3 font-medium">付费方式</th>
+                      <th className="pb-3 font-medium text-right">消费积分</th>
+                      <th className="pb-3 font-medium text-right">我的收入</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.map((t) => (
+                      <tr key={t.id}>
+                        <td className="py-3 text-gray-500">{formatDate(t.createdAt)}</td>
+                        <td className="py-3 font-medium text-gray-800">
+                          {t.relatedPurchase?.app?.title ?? "-"}
+                        </td>
+                        <td className="py-3 text-gray-600">
+                          {t.consumer?.name ?? t.consumer?.email ?? "-"}
+                        </td>
+                        <td className="py-3">
+                          <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600">
+                            {t.relatedPurchase?.purchaseType === "PER_USE" ? "按次" : "买断"}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-gray-600">
+                          {t.purchaseAmount ?? t.relatedPurchase?.pointsCost ?? 0}
+                        </td>
+                        <td className="py-3 text-right font-semibold text-green-600">
+                          +{t.amount} ⚡
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

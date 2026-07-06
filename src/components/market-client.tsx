@@ -12,6 +12,8 @@ interface AppData {
   appType: string;
   coverImage: string | null;
   price: number;
+  pricePerUse?: number;
+  accessUrl?: string | null;
   downloadCount: number;
   rating: number;
   createdAt: Date | string;

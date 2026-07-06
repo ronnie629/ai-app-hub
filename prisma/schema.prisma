@@ -33,10 +33,11 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  apps         App[]
-  purchases    Purchase[]
-  transactions PointsTransaction[]
-  reviews      Review[]
+  apps                App[]
+  purchases           Purchase[]
+  transactions        PointsTransaction[]  @relation("PointsTransactionUser")
+  consumerTransactions PointsTransaction[] @relation("PointsTransactionConsumer")
+  reviews             Review[]
 
   @@map("users")
 }
@@ -90,6 +91,7 @@ model Purchase {
 
   user             User     @relation(fields: [userId], references: [id])
   app              App      @relation(fields: [appId], references: [id])
+  pointsTransactions PointsTransaction[]
 
   @@index([userId, createdAt])
   @@index([appId, createdAt])
@@ -98,17 +100,23 @@ model Purchase {
 }
 
 model PointsTransaction {
-  id           String   @id @default(cuid())
-  userId       String
-  type         String
-  amount       Int
-  balanceAfter Int
-  description  String   @default("") @db.VarChar(5000)
-  relatedId    String?
-  createdAt    DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String   // 接收积分的用户（开发者收益时是开发者，消费时是消费者）
+  type           String
+  amount         Int
+  balanceAfter   Int      // 操作后该用户的积分余额
+  description    String   @default("") @db.VarChar(5000)
+  relatedId      String?  // 关联的购买记录ID
+  consumerId     String?  // 消费者ID（收益类型时记录是谁消费的）
+  purchaseAmount Int?     // 消费金额（收益类型时记录消费者支付的总金额）
+  createdAt      DateTime @default(now())
 
-  user         User     @relation(fields: [userId], references: [id])
+  user            User      @relation("PointsTransactionUser", fields: [userId], references: [id])
+  relatedPurchase Purchase? @relation(fields: [relatedId], references: [id])
+  consumer        User?     @relation("PointsTransactionConsumer", fields: [consumerId], references: [id])
 
+  @@index([userId, createdAt])
+  @@index([consumerId])
   @@map("points_transactions")
 }
 

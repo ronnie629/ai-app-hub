@@ -11,11 +11,13 @@ interface SessionUser {
   name: string;
   role: string;
   points: number;
+  unreadCount?: number;
 }
 
 export function Navbar() {
   const pathname = usePathname();
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,17 +34,31 @@ export function Navbar() {
     }
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/unread-count");
+      const data = await res.json();
+      setUnreadCount(data.count || 0);
+    } catch {
+      // Silent fail
+    }
+  }, []);
+
   // Fetch on mount and on pathname change (covers login→dashboard, logout→home, etc.)
   useEffect(() => {
     fetchUser();
-  }, [fetchUser, pathname]);
+    if (user) fetchUnreadCount();
+  }, [fetchUser, fetchUnreadCount, pathname, user]);
 
   // Listen for custom auth events (login/logout/points change)
   useEffect(() => {
-    const handler = () => fetchUser();
+    const handler = () => {
+      fetchUser();
+      fetchUnreadCount();
+    };
     window.addEventListener("auth-change", handler);
     return () => window.removeEventListener("auth-change", handler);
-  }, [fetchUser]);
+  }, [fetchUser, fetchUnreadCount]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -118,15 +134,7 @@ export function Navbar() {
                 </div>
               ) : user ? (
                 <>
-                  <Link
-                    href="/dashboard/notifications"
-                    className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                    title="消息通知"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                  </Link>
+
                   {/* Points - hidden on smallest phones */}
                   <Link
                     href="/dashboard"
@@ -169,6 +177,18 @@ export function Navbar() {
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                         <Link
+                          href="/dashboard/notifications"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <span>消息通知</span>
+                          {unreadCount > 0 && (
+                            <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white">
+                              {unreadCount > 99 ? "99+" : unreadCount}
+                            </span>
+                          )}
+                        </Link>
+                        <Link
                           href="/dashboard"
                           onClick={() => setMenuOpen(false)}
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -181,6 +201,13 @@ export function Navbar() {
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           个人资料
+                        </Link>
+                        <Link
+                          href="/dashboard/apps"
+                          onClick={() => setMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          我的应用
                         </Link>
                         <Link
                           href="/dashboard/favorites"

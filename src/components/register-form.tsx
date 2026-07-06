@@ -53,7 +53,11 @@ const APP_DOMAIN_OPTIONS = [
   "AI 生活娱乐",
 ];
 
-export function RegisterForm() {
+interface RegisterFormProps {
+  redirect?: string;
+}
+
+export function RegisterForm({ redirect = "/dashboard" }: RegisterFormProps) {
   const [step, setStep] = useState(1);
   const [accountType, setAccountType] = useState<"USER" | "DEVELOPER">("USER");
   const [form, setForm] = useState({
@@ -107,7 +111,7 @@ export function RegisterForm() {
       });
       const data = await res.json();
       if (res.ok) {
-        window.location.href = "/dashboard";
+        window.location.href = redirect;
       } else {
         setError(data.error || "注册失败");
       }

@@ -1,6 +1,12 @@
 import { RegisterForm } from "@/components/register-form";
 
-export default function RegisterPage() {
+interface RegisterPageProps {
+  searchParams: Promise<{ redirect?: string }>;
+}
+
+export default async function RegisterPage({ searchParams }: RegisterPageProps) {
+  const { redirect } = await searchParams;
+
   return (
     <div className="mx-auto max-w-md px-4 py-8 sm:py-16">
       <div className="text-center mb-6 sm:mb-8">
@@ -10,7 +16,7 @@ export default function RegisterPage() {
         <h1 className="text-xl sm:text-2xl font-bold">创建账号</h1>
         <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">加入 AIHub，发现和发布 AI 应用</p>
       </div>
-      <RegisterForm />
+      <RegisterForm redirect={redirect || "/dashboard"} />
     </div>
   );
 }

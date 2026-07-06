@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     // 使用事务：扣减积分、创建购买记录、创建积分流水、生成 AccessToken
     const result = await prisma.$transaction(async (tx) => {
-      // 1. 扣减用户积分
+      // 1. 扣减用户积分（消费者）
       const updatedUser = await tx.user.update({
         where: { id: session.id },
         data: { points: { decrement: cost }, lastPurchaseAt: new Date() },
@@ -95,9 +95,9 @@ export async function POST(req: Request) {
         },
       });
 
-      // 3. 增加开发者收益
+      // 3. 增加开发者收益并记录流水
       if (developerEarning > 0) {
-        await tx.user.update({
+        const updatedDeveloper = await tx.user.update({
           where: { id: app.developerId },
           data: { points: { increment: developerEarning } },
         });
@@ -107,21 +107,23 @@ export async function POST(req: Request) {
             userId: app.developerId,
             type: "EARNING",
             amount: developerEarning,
-            balanceAfter: undefined as any,
-            description: `应用「${app.title}」收益`,
+            balanceAfter: updatedDeveloper.points,
+            description: `应用「${app.title}」${isPerUse ? "按次使用" : "买断"}收入`,
             relatedId: purchase.id,
+            consumerId: session.id,
+            purchaseAmount: cost,
           },
         });
       }
 
-      // 4. 记录消费流水
+      // 4. 记录消费流水（消费者支出）
       await tx.pointsTransaction.create({
         data: {
           userId: session.id,
           type: "PURCHASE",
           amount: -cost,
           balanceAfter: updatedUser.points,
-          description: `${isPerUse ? "按次使用" : "购买"}「${app.title}」`,
+          description: `${isPerUse ? "按次购买" : "买断"}应用「${app.title}」`,
           relatedId: purchase.id,
         },
       });

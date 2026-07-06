@@ -83,32 +83,13 @@ export async function POST(
     const developerEarning = price - platformEarning;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 扣除用户积分 + 记录最后购买时间
+      // 扣除用户积分 + 记录最后购买时间（消费者）
       const updatedUser = await tx.user.update({
         where: { id: session.id },
         data: { points: { decrement: price }, lastPurchaseAt: new Date() },
       });
 
-      // 增加开发者收入
-      if (developerEarning > 0) {
-        const updatedDeveloper = await tx.user.update({
-          where: { id: app.developerId },
-          data: { points: { increment: developerEarning } },
-        });
-
-        await tx.pointsTransaction.create({
-          data: {
-            userId: app.developerId,
-            type: "EARNING",
-            amount: developerEarning,
-            balanceAfter: updatedDeveloper.points,
-            description: `应用「${app.title}」${type === "PER_USE" ? "按次使用" : "买断"}收入`,
-            relatedId: appId,
-          },
-        });
-      }
-
-      // 创建购买记录
+      // 先创建购买记录，以便获取 purchase.id 作为 relatedId
       const purchase = await tx.purchase.create({
         data: {
           userId: session.id,
@@ -122,7 +103,28 @@ export async function POST(
         },
       });
 
-      // 记录用户支出
+      // 增加开发者收入并记录流水
+      if (developerEarning > 0) {
+        const updatedDeveloper = await tx.user.update({
+          where: { id: app.developerId },
+          data: { points: { increment: developerEarning } },
+        });
+
+        await tx.pointsTransaction.create({
+          data: {
+            userId: app.developerId,
+            type: "EARNING",
+            amount: developerEarning,
+            balanceAfter: updatedDeveloper.points,
+            description: `应用「${app.title}」${type === "PER_USE" ? "按次使用" : "买断"}收入`,
+            relatedId: purchase.id,
+            consumerId: session.id,
+            purchaseAmount: price,
+          },
+        });
+      }
+
+      // 记录用户支出流水（消费者）
       await tx.pointsTransaction.create({
         data: {
           userId: session.id,
@@ -130,7 +132,7 @@ export async function POST(
           amount: -price,
           balanceAfter: updatedUser.points,
           description: `${type === "PER_USE" ? "按次购买" : "买断"}应用「${app.title}」`,
-          relatedId: appId,
+          relatedId: purchase.id,
         },
       });
 

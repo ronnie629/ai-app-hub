@@ -78,7 +78,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
     { href: "/dashboard/notifications", label: "消息通知" },
     { href: "/dashboard/points", label: "积分充值" },
     { href: "/dashboard/profile", label: "个人资料" },
-    { href: "/dashboard/earnings", label: "收益管理" },
+    { href: "/dashboard/earnings", label: "收入记录" },
   ];
 
   return (
